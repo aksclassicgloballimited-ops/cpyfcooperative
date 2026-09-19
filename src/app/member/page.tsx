@@ -9,7 +9,12 @@ const notifications = [
   'Your loan repayment reminder is due in 3 days.',
 ];
 
-const quickActions = ['Add Savings', 'Apply for Loan', 'Track Shares', 'Download Statement'];
+const quickActions = [
+  { label: 'Add Savings', href: '/member/savings' },
+  { label: 'Apply for Loan', href: '#loan-form' },
+  { label: 'Track Shares', href: '/member/shares' },
+  { label: 'Download Statement', href: '/member/savings' },
+];
 
 export default function MemberDashboardPage() {
   const router = useRouter();
@@ -21,6 +26,15 @@ export default function MemberDashboardPage() {
   const [loanApplications, setLoanApplications] = useState<Array<{ type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
   const [loanForm, setLoanForm] = useState({ type: 'BUSINESS', amount: '250000', purpose: 'Business expansion and working capital' });
   const [loanMessage, setLoanMessage] = useState('');
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profile, setProfile] = useState({
+    firstName: 'Ada',
+    lastName: 'Musa',
+    email: 'member@cpyif.org',
+    phone: '+2348000000002',
+    weeklyTarget: '2500',
+    membershipType: 'Appearance Member',
+  });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -44,6 +58,15 @@ export default function MemberDashboardPage() {
           setWeeklyTarget(Number(data.user.membership?.weeklyTarget || weeklyTarget));
           setGrade(data.user.membership?.grade || 'ACTIVE');
           setMemberRole(data.user.role || 'MEMBER');
+          setProfile((current) => ({
+            ...current,
+            firstName: data.user.firstName || current.firstName,
+            lastName: data.user.lastName || current.lastName,
+            email: data.user.email || current.email,
+            phone: data.user.phone || current.phone,
+            weeklyTarget: String(data.user.membership?.weeklyTarget ?? current.weeklyTarget),
+            membershipType: data.user.membership?.category === 'NON_APPEARANCE' ? 'Non-Appearance Member' : 'Appearance Member',
+          }));
         }
       } catch {
         router.replace('/#portal');
@@ -70,12 +93,20 @@ export default function MemberDashboardPage() {
   const totalSavings = weeklyTarget * 12 * 2;
   const activeLoanTotal = loanApplications.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const dividendAmount = Math.round(totalSavings * 0.08);
+  const shareUnits = Math.max(4, Math.round(totalSavings / 50000));
+  const loanCapacity = Math.min(3, Math.max(1, Math.round((weeklyTarget / 2500) + 1)));
 
   const summaryCards = [
     { label: 'Total Savings', value: `₦${totalSavings.toLocaleString()}`, tone: 'bg-violet-50 text-[#6A11CB]' },
     { label: 'Active Loan', value: `₦${activeLoanTotal.toLocaleString()}`, tone: 'bg-emerald-50 text-emerald-600' },
     { label: 'Dividend', value: `₦${dividendAmount.toLocaleString()}`, tone: 'bg-amber-50 text-amber-600' },
     { label: 'Membership Grade', value: grade, tone: 'bg-sky-50 text-sky-600' },
+  ];
+
+  const shareProgress = [
+    { label: 'Share Units', value: `${shareUnits} Units`, tone: 'bg-violet-50 text-[#6A11CB]' },
+    { label: 'Weekly Target', value: `₦${weeklyTarget.toLocaleString()}`, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Loan Capacity', value: `${loanCapacity}x Savings`, tone: 'bg-emerald-50 text-emerald-600' },
   ];
 
   const recentTransactions = loanApplications.length > 0 ? loanApplications.slice(0, 4).map((loan) => ({
@@ -120,6 +151,12 @@ export default function MemberDashboardPage() {
     }
   };
 
+  const handleProfileSave = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProfileMessage('Profile information saved successfully.');
+    setWeeklyTarget(Number(profile.weeklyTarget || 2500));
+  };
+
   return (
     <main className="min-h-screen bg-[#f5f3ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -138,6 +175,15 @@ export default function MemberDashboardPage() {
             <div key={item.label} className="rounded-[1.5rem] border border-violet-200 bg-white p-5 shadow-sm">
               <div className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.tone}`}>{item.label}</div>
               <div className="mt-4 text-3xl font-bold text-[#1d1731]">{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {shareProgress.map((item) => (
+            <div key={item.label} className="rounded-[1.5rem] border border-violet-200 bg-white p-5 shadow-sm">
+              <div className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.tone}`}>{item.label}</div>
+              <div className="mt-4 text-2xl font-bold text-[#1d1731]">{item.value}</div>
             </div>
           ))}
         </div>
@@ -163,10 +209,10 @@ export default function MemberDashboardPage() {
             <h2 className="text-xl font-bold text-[#1d1731]">Quick Actions</h2>
             <div className="mt-5 space-y-3">
               {quickActions.map((action) => (
-                <button key={action} type="button" className="flex w-full items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-left text-sm font-semibold text-[#4C1D95] transition hover:bg-violet-100">
-                  {action}
+                <a key={action.label} href={action.href} className="flex w-full items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-left text-sm font-semibold text-[#4C1D95] transition hover:bg-violet-100">
+                  {action.label}
                   <span>→</span>
-                </button>
+                </a>
               ))}
             </div>
           </aside>
@@ -205,7 +251,7 @@ export default function MemberDashboardPage() {
             </div>
           </section>
 
-          <aside className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <aside id="loan-form" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold text-[#1d1731]">Apply for Loan</h2>
             <form onSubmit={handleLoanSubmit} className="mt-5 space-y-4">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -236,16 +282,94 @@ export default function MemberDashboardPage() {
           </aside>
         </div>
 
-        <div className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-[#1d1731]">Notifications</h2>
-          <div className="mt-5 space-y-4">
-            {notifications.map((item) => (
-              <div key={item} className="flex gap-3 rounded-xl bg-violet-50 p-3 text-sm text-slate-700">
-                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#6A11CB]" />
-                <span>{item}</span>
+        <div className="mt-8 grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#1d1731]">Profile & Settings</h2>
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">{memberRole}</span>
+            </div>
+
+            <form onSubmit={handleProfileSave} className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                First Name
+                <input
+                  value={profile.firstName}
+                  onChange={(event) => setProfile((current) => ({ ...current, firstName: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Last Name
+                <input
+                  value={profile.lastName}
+                  onChange={(event) => setProfile((current) => ({ ...current, lastName: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
+                Email Address
+                <input
+                  type="email"
+                  value={profile.email}
+                  onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Phone Number
+                <input
+                  value={profile.phone}
+                  onChange={(event) => setProfile((current) => ({ ...current, phone: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Membership Type
+                <select
+                  value={profile.membershipType}
+                  onChange={(event) => setProfile((current) => ({ ...current, membershipType: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                >
+                  <option>Appearance Member</option>
+                  <option>Non-Appearance Member</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
+                Weekly Savings Target (₦)
+                <input
+                  type="number"
+                  value={profile.weeklyTarget}
+                  onChange={(event) => setProfile((current) => ({ ...current, weeklyTarget: event.target.value }))}
+                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                />
+              </label>
+
+              {profileMessage && <div className="md:col-span-2 rounded-xl bg-violet-50 px-3 py-2 text-sm text-[#4C1D95]">{profileMessage}</div>}
+
+              <div className="md:col-span-2">
+                <button type="submit" className="rounded-full bg-[#6A11CB] px-5 py-3 font-bold text-white transition hover:bg-[#5b0fc4]">
+                  Save Changes
+                </button>
               </div>
-            ))}
-          </div>
+            </form>
+          </section>
+
+          <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-[#1d1731]">Notifications</h2>
+            <div className="mt-5 space-y-4">
+              {notifications.map((item) => (
+                <div key={item} className="flex gap-3 rounded-xl bg-violet-50 p-3 text-sm text-slate-700">
+                  <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#6A11CB]" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </main>

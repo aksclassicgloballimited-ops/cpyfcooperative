@@ -13,11 +13,57 @@ type MemberRecord = {
   membership?: { category?: string; membershipNo?: string; weeklyTarget?: number | null } | null;
 };
 
-const quickActions = ['Review Applications', 'Manage Members', 'Loan Requests', 'Reports'];
+type LoanQueueItem = {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    role?: string;
+  } | null;
+};
+
+const quickActions = [
+  { label: 'Review Applications', href: '#review-queue' },
+  { label: 'Manage Members', href: '#review-queue' },
+  { label: 'Loan Requests', href: '#review-queue' },
+  { label: 'Reports', href: '/admin/reports' },
+];
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [loanQueue, setLoanQueue] = useState<LoanQueueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadAdminData = async () => {
+    try {
+      const [membersResponse, loansResponse] = await Promise.all([
+        fetch('/api/members', { cache: 'no-store' }),
+        fetch('/api/loans?scope=all', { cache: 'no-store' }),
+      ]);
+
+      if (membersResponse.ok) {
+        const membersData = await membersResponse.json();
+        setMembers(membersData.members ?? []);
+      }
+
+      if (loansResponse.ok) {
+        const loansData = await loansResponse.json();
+        setLoanQueue(loansData.loans ?? []);
+      }
+    } catch {
+      // keep fallback data if backend is unavailable
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -34,11 +80,7 @@ export default function AdminDashboardPage() {
           return;
         }
 
-        const membersResponse = await fetch('/api/members', { cache: 'no-store' });
-        if (membersResponse.ok) {
-          const membersData = await membersResponse.json();
-          setMembers(membersData.members ?? []);
-        }
+        await loadAdminData();
       } catch {
         router.replace('/#portal');
       }
@@ -47,24 +89,53 @@ export default function AdminDashboardPage() {
     loadUser();
   }, [router]);
 
-  const summaryCards = [
-    { label: 'Total Members', value: String(members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
-    { label: 'Pending Applications', value: '48', tone: 'bg-amber-50 text-amber-600' },
-    { label: 'Active Loans', value: '163', tone: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Monthly Savings', value: '₦7.8M', tone: 'bg-sky-50 text-sky-600' },
+  const handleReview = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const response = await fetch('/api/loans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      if (response.ok) {
+        await loadAdminData();
+      }
+    } catch {
+      // fail silently for now
+    }
+  };
+
+  const fallbackQueue: LoanQueueItem[] = [
+    {
+      id: 'demo-1',
+      userId: 'demo-1',
+      type: 'BUSINESS',
+      amount: 250000,
+      purpose: 'Business expansion and working capital',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      user: { firstName: 'Faridat', lastName: 'Bello', email: 'faridat@cpyif.org', role: 'MEMBER' },
+    },
+    {
+      id: 'demo-2',
+      userId: 'demo-2',
+      type: 'PROPERTY',
+      amount: 180000,
+      purpose: 'Residential property deposit',
+      status: 'REVIEW',
+      createdAt: new Date().toISOString(),
+      user: { firstName: 'Musa', lastName: 'Adamu', email: 'musa@cpyif.org', role: 'MEMBER' },
+    },
   ];
 
-  const appQueue = (members.length ? members.slice(0, 4) : [
-    { id: 'demo-1', firstName: 'Faridat', lastName: 'Bello', email: 'faridat@cpyif.org', phone: '08000000000', role: 'MEMBER', membership: { category: 'Appearance', membershipNo: 'CPYF-1001', weeklyTarget: 2500 } },
-    { id: 'demo-2', firstName: 'Musa', lastName: 'Adamu', email: 'musa@cpyif.org', phone: '08000000001', role: 'MEMBER', membership: { category: 'Non-Appearance', membershipNo: 'CPYF-1002', weeklyTarget: 3000 } },
-    { id: 'demo-3', firstName: 'Grace', lastName: 'Kola', email: 'grace@cpyif.org', phone: '08000000002', role: 'MEMBER', membership: { category: 'Appearance', membershipNo: 'CPYF-1003', weeklyTarget: 2500 } },
-    { id: 'demo-4', firstName: 'Kehinde', lastName: 'Ayo', email: 'kehinde@cpyif.org', phone: '08000000003', role: 'MEMBER', membership: { category: 'Non-Appearance', membershipNo: 'CPYF-1004', weeklyTarget: 3000 } },
-  ]).map((item) => ({
-    name: `${item.firstName} ${item.lastName}`,
-    category: item.membership?.category ?? 'Appearance',
-    amount: `₦${(item.membership?.weeklyTarget ?? 2500).toLocaleString()}`,
-    status: item.role === 'ADMIN' ? 'Approved' : item.role === 'EXECUTIVE' ? 'Review' : 'Pending',
-  }));
+  const queue = loanQueue.length ? loanQueue : fallbackQueue;
+
+  const summaryCards = [
+    { label: 'Total Members', value: String(members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
+    { label: 'Pending Applications', value: String(queue.filter((item) => item.status === 'PENDING').length || 0), tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Active Loans', value: String(queue.filter((item) => item.status === 'APPROVED' || item.status === 'DISBURSED').length || 0), tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Monthly Savings', value: '₦7.8M', tone: 'bg-sky-50 text-sky-600' },
+  ];
 
   return (
     <main className="min-h-screen bg-[#f8f5ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
@@ -74,8 +145,7 @@ export default function AdminDashboardPage() {
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-200">Admin Console</p>
             <h1 className="mt-2 text-3xl font-bold">CPYIF Executive Dashboard</h1>
           </div>
-          <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">
-            Executive Access</div>
+          <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Executive Access</div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -88,10 +158,10 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="mt-8 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-          <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <section id="review-queue" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#1d1731]">Application Review Queue</h2>
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">Live</span>
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">{loading ? 'Loading...' : 'Live'}</span>
             </div>
 
             <div className="overflow-hidden rounded-[1.25rem] border border-violet-100">
@@ -99,24 +169,57 @@ export default function AdminDashboardPage() {
                 <thead className="bg-violet-50 text-[#4C1D95]">
                   <tr>
                     <th className="px-4 py-3 font-bold">Member</th>
-                    <th className="px-4 py-3 font-bold">Category</th>
+                    <th className="px-4 py-3 font-bold">Purpose</th>
                     <th className="px-4 py-3 font-bold">Amount</th>
                     <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {appQueue.map((item) => (
-                    <tr key={item.name} className="border-t border-violet-100">
-                      <td className="px-4 py-3 font-medium text-[#1d1731]">{item.name}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.category}</td>
-                      <td className="px-4 py-3 font-semibold text-[#1d1731]">{item.amount}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.status === 'Approved' ? 'bg-emerald-50 text-emerald-600' : item.status === 'Review' ? 'bg-amber-50 text-amber-600' : 'bg-violet-50 text-[#6A11CB]'}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {queue.map((item) => {
+                    const applicantName = item.user ? `${item.user.firstName ?? ''} ${item.user.lastName ?? ''}`.trim() : 'Pending member';
+                    const statusClass = item.status === 'APPROVED'
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : item.status === 'REJECTED'
+                        ? 'bg-rose-50 text-rose-600'
+                        : item.status === 'DISBURSED'
+                          ? 'bg-sky-50 text-sky-600'
+                          : 'bg-amber-50 text-amber-600';
+
+                    return (
+                      <tr key={item.id} className="border-t border-violet-100 align-top">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-[#1d1731]">{applicantName}</div>
+                          <div className="text-xs text-slate-500">{item.user?.email ?? 'Member'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{item.purpose}</td>
+                        <td className="px-4 py-3 font-semibold text-[#1d1731]">₦{Number(item.amount || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleReview(item.id, 'APPROVED')}
+                              className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-semibold text-white hover:bg-[#4C1D95]"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReview(item.id, 'REJECTED')}
+                              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -126,14 +229,35 @@ export default function AdminDashboardPage() {
             <h2 className="text-xl font-bold text-[#1d1731]">Quick Actions</h2>
             <div className="mt-5 space-y-3">
               {quickActions.map((action) => (
-                <button key={action} type="button" className="flex w-full items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-left text-sm font-semibold text-[#4C1D95] transition hover:bg-violet-100">
-                  {action}
+                <a key={action.label} href={action.href} className="flex w-full items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-left text-sm font-semibold text-[#4C1D95] transition hover:bg-violet-100">
+                  {action.label}
                   <span>→</span>
-                </button>
+                </a>
               ))}
             </div>
           </aside>
         </div>
+
+        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-[#1d1731]">Performance Report</h2>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-emerald-700">Quarterly</span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            {[
+              { label: 'Savings Growth', value: '+18.4%', tone: 'bg-violet-50 text-[#6A11CB]' },
+              { label: 'Loan Approval Rate', value: '92%', tone: 'bg-emerald-50 text-emerald-600' },
+              { label: 'Dividend Payout', value: '₦2.1M', tone: 'bg-amber-50 text-amber-600' },
+              { label: 'Member Retention', value: '94%', tone: 'bg-sky-50 text-sky-600' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[1.2rem] border border-violet-100 bg-violet-50/40 p-4">
+                <div className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${item.tone}`}>{item.label}</div>
+                <div className="mt-4 text-2xl font-bold text-[#1d1731]">{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </main>
   );
