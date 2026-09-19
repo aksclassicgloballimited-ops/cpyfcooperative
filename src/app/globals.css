@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  background: #ffffff;
+  color: #1d1731;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+@layer components {
+  .section-shell {
+    @apply mx-auto max-w-7xl px-5 sm:px-8;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold tracking-[0.25em] text-[#6A11CB] uppercase;
+  }
+
+  .card-surface {
+    @apply rounded-[1.5rem] border border-violet-200 bg-white;
+    box-shadow: 0 18px 60px rgba(76, 29, 149, 0.12);
+  }
+
+  .dark .card-surface {
+    @apply border-white/10 bg-[#281842] shadow-none;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image: linear-gradient(rgba(76,29,149,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(76,29,149,0.05) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+
+  .hero-bg {
+    background: radial-gradient(circle at 20% 5%, rgba(151, 73, 221, 1), transparent 34%), linear-gradient(135deg, #6A11CB, #9365D8 58%, #E9D5FF);
+  }
+
+  .cta-bg {
+    background: linear-gradient(120deg, #4C1D95, #7E22CE 60%, #A855F7);
+  }
+}
