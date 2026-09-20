@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useSearchParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
@@ -43,7 +43,7 @@ function RegistrationForm() {
   return (
     <main className="min-h-screen bg-[#f7f4ff] px-4 py-10 text-[#1d1731] sm:px-6">
       <div className="mx-auto max-w-4xl">
-        <a href="/" className="text-sm font-bold text-[#6A11CB]">← Back to CPYIF</a>
+        <a href="/" className="text-sm font-bold text-[#6A11CB]">â† Back to CPYIF</a>
         <div className="mt-5 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-7 text-white">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Membership registration</p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Join CPYIF</h1>
@@ -72,7 +72,7 @@ function RegistrationForm() {
           </Section>
           <Section title="Account Information">
             <Field name="password" label="Password" type="password" required /><Field name="confirmPassword" label="Confirm Password" type="password" required />
-            <div className="grid gap-2 text-sm"><label className="font-semibold">Membership plan</label><div className="rounded-xl bg-violet-50 px-3 py-2.5 font-semibold">{category === 'APPEARANCE' ? 'Appearance Member — N2,500 weekly minimum' : 'Non-Appearance Member — N3,000 weekly minimum'}</div></div>
+            <div className="grid gap-2 text-sm"><label className="font-semibold">Membership plan</label><div className="rounded-xl bg-violet-50 px-3 py-2.5 font-semibold">{category === 'APPEARANCE' ? 'Appearance Member â€” N2,500 weekly minimum' : 'Non-Appearance Member â€” N3,000 weekly minimum'}</div></div>
           </Section>
           <Section title="Required Documents">
             <FileField name="passportPhoto" label="Passport photograph (maximum 25 KB)" />
@@ -80,7 +80,7 @@ function RegistrationForm() {
           </Section>
           <label className="flex items-start gap-3 rounded-2xl border border-violet-200 bg-white p-4 text-sm">
             <input name="termsAccepted" value="true" type="checkbox" required className="mt-1 accent-[#6A11CB]" />
-            <span>I accept the CPYIF cooperative terms and conditions. <a href="/cpyfterm.pdf" target="_blank" rel="noreferrer" className="font-bold text-[#6A11CB] underline">Read the terms</a>.</span>
+            <span>I accept the CPYIF cooperative terms and conditions. <a href="/cpyfterms.pdf" target="_blank" rel="noreferrer" className="font-bold text-[#6A11CB] underline">Read the terms</a>.</span>
           </label>
           {message && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{message}</p>}
           <button disabled={submitting} className="w-full rounded-full bg-[#6A11CB] px-5 py-3.5 font-bold text-white disabled:opacity-60">{submitting ? 'Submitting...' : 'Create Member Account'}</button>
@@ -106,3 +106,4 @@ function FileField({ name, label }: { name: string; label: string }) {
 export default function RegisterPage() {
   return <Suspense fallback={<main className="min-h-screen bg-[#f7f4ff] p-10 text-[#1d1731]">Loading registration form...</main>}><RegistrationForm /></Suspense>;
 }
+
