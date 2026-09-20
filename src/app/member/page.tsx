@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const notifications = [
   'Weekly meeting scheduled for Wednesday at 7:00 PM.',
@@ -12,7 +13,7 @@ const notifications = [
 
 const quickActions = [
   { label: 'Add Savings', href: '/member/savings' },
-  { label: 'Apply for Loan', href: '#loan-form' },
+  { label: 'Browse Loan Plans', href: '/loans' },
   { label: 'Track Shares', href: '/member/shares' },
   { label: 'Download Statement', href: '/member/savings' },
 ];
@@ -29,8 +30,8 @@ export default function MemberDashboardPage() {
   const [registrationDate, setRegistrationDate] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
   const [financials, setFinancials] = useState({ savings: 0, weeklySavings: 0, shares: 0, shareValue: 0, outstandingLoan: 0, repayments: 0 });
-  const [loanApplications, setLoanApplications] = useState<Array<{ type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
-  const [loanForm, setLoanForm] = useState({ type: 'BUSINESS', amount: '250000', purpose: 'Business expansion and working capital' });
+  const [loanApplications, setLoanApplications] = useState<Array<{ applicationNo?: string; type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
+  const [loanForm, setLoanForm] = useState({ type: 'GENERAL', amount: '250000', purpose: 'Business expansion and working capital' });
   const [loanMessage, setLoanMessage] = useState('');
   const [profileMessage, setProfileMessage] = useState('');
   const [profile, setProfile] = useState({
@@ -169,7 +170,7 @@ export default function MemberDashboardPage() {
       }
 
       setLoanMessage('Loan application submitted successfully.');
-      setLoanForm({ type: 'BUSINESS', amount: '250000', purpose: 'Business expansion and working capital' });
+      setLoanForm({ type: 'GENERAL', amount: '250000', purpose: 'Business expansion and working capital' });
       const refreshed = await fetch('/api/loans', { cache: 'no-store' });
       const refreshedData = await refreshed.json();
       if (Array.isArray(refreshedData.loans)) setLoanApplications(refreshedData.loans);
@@ -314,12 +315,26 @@ export default function MemberDashboardPage() {
           </section>
 
           <aside id="loan-form" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-[#1d1731]">Apply for Loan</h2>
+            <h2 className="text-xl font-bold text-[#1d1731]">Loan Applications</h2>
+            <Link href="/loans" className="mt-3 inline-flex rounded-full bg-[#6A11CB] px-4 py-2 text-sm font-bold text-white">Browse loan plans</Link>
+            <div className="mt-5 space-y-3">
+              {loanApplications.slice(0, 4).map((loan) => (
+                <div key={`${loan.applicationNo || loan.createdAt}-${loan.type}`} className="rounded-xl bg-violet-50 p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2"><span className="font-bold">{loan.applicationNo || loan.type}</span><span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-[#6A11CB]">{loan.status}</span></div>
+                  <p className="mt-1 text-slate-600">₦{Number(loan.amount).toLocaleString()} · {loan.type}</p>
+                </div>
+              ))}
+              {!loanApplications.length && <p className="text-sm text-slate-500">No loan applications yet.</p>}
+            </div>
+            {/* The legacy inline form remains below for existing members; new applications use the product workflow. */}
+            <details className="mt-5 rounded-xl border border-violet-100 p-4">
+              <summary className="cursor-pointer text-sm font-bold text-[#4C1D95]">Legacy quick application</summary>
             <form onSubmit={handleLoanSubmit} className="mt-5 space-y-4">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 Loan type
                 <select value={loanForm.type} onChange={(event) => setLoanForm((current) => ({ ...current, type: event.target.value }))} className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]">
-                  <option value="BUSINESS">Business</option>
+                  <option value="GENERAL">General</option>
+                  <option value="COMMODITY">Commodity</option>
                   <option value="PROPERTY">Property</option>
                   <option value="EMERGENCY">Emergency</option>
                 </select>
@@ -341,6 +356,7 @@ export default function MemberDashboardPage() {
                 Submit Loan Request
               </button>
             </form>
+            </details>
           </aside>
         </div>
 

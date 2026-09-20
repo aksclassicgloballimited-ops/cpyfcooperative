@@ -4,6 +4,8 @@ import { getUserFromRequest } from "@/lib/auth";
 import { createLoanLocal, loans, users } from "@/lib/store";
 import { loanApplicationSchema } from "@/lib/validation";
 import { getCategoryConfig } from "@/lib/membership";
+import { ensureLoanProducts } from "@/lib/loan-products";
+import { randomUUID } from "crypto";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -17,6 +19,10 @@ export async function GET(request: Request) {
   if (includeAll) {
     if (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE") {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    if (new URL(request.url).searchParams.get("products") === "true") {
+      return NextResponse.json({ products: await ensureLoanProducts() });
     }
 
     if (process.env.DATABASE_URL) {
@@ -91,12 +97,40 @@ export async function POST(request: Request) {
       if (parsed.data.amount > maximum) {
         return NextResponse.json({ error: `Your ${category.displayName} limit is ₦${maximum.toLocaleString()}` }, { status: 400 });
       }
+      const product = parsed.data.loanProductId
+        ? await prisma.loanProduct.findUnique({ where: { id: parsed.data.loanProductId } })
+        : await prisma.loanProduct.findUnique({ where: { type: parsed.data.type } });
+      if (!product || !product.active) return NextResponse.json({ error: "This loan product is not available" }, { status: 400 });
+      if (parsed.data.amount < product.minimumAmount || parsed.data.amount > product.maximumAmount) {
+        return NextResponse.json({ error: `Amount must be between ₦${product.minimumAmount.toLocaleString()} and ₦${product.maximumAmount.toLocaleString()}` }, { status: 400 });
+      }
+      const fee = product.processingFeeType === "PERCENTAGE" ? parsed.data.amount * product.processingFeeValue / 100 : product.processingFeeValue;
+      const period = parsed.data.repaymentPeriod || product.repaymentPeriod;
+      const totalRepayment = parsed.data.amount + fee;
       const created = await prisma.loanApplication.create({
         data: {
+          applicationNo: `LOAN/${new Date().getFullYear()}/${randomUUID().replaceAll("-", "").slice(0, 5).toUpperCase()}`,
           userId: sessionUser.id,
           type: parsed.data.type,
+          loanProductId: product.id,
           amount: parsed.data.amount,
           purpose: parsed.data.purpose,
+          repaymentPeriod: period,
+          repaymentFrequency: parsed.data.repaymentFrequency || product.repaymentFrequency,
+          processingFee: fee,
+          totalRepayment,
+          estimatedInstallment: totalRepayment / period,
+          guarantorName: parsed.data.guarantorName,
+          guarantorPhone: parsed.data.guarantorPhone,
+          guarantorAddress: parsed.data.guarantorAddress,
+          guarantorRelationship: parsed.data.guarantorRelationship,
+          propertyType: parsed.data.propertyType,
+          propertyLocation: parsed.data.propertyLocation,
+          propertyValue: parsed.data.propertyValue,
+          propertyDocuments: parsed.data.propertyDocuments,
+          supportingDocuments: parsed.data.supportingDocuments,
+          documents: parsed.data.documents,
+          commodityItems: parsed.data.commodityItems,
         },
       });
 
@@ -129,7 +163,7 @@ export async function PUT(request: Request) {
     }
 
     const normalizedStatus = String(status).toUpperCase();
-    const allowedStatuses = ["PENDING", "APPROVED", "DISBURSED", "COMPLETED", "REJECTED"];
+    const allowedStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "PENDING", "APPROVED", "DISBURSED", "ACTIVE", "COMPLETED", "REJECTED", "DEFAULTED"];
     if (!allowedStatuses.includes(normalizedStatus)) {
       return NextResponse.json({ error: "Invalid loan status" }, { status: 400 });
     }

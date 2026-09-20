@@ -23,7 +23,7 @@ export type StoredUser = {
 export type StoredLoan = {
   id: string;
   userId: string;
-  type: "PROPERTY" | "BUSINESS" | "EMERGENCY";
+  type: "GENERAL" | "PROPERTY" | "COMMODITY" | "BUSINESS" | "EMERGENCY";
   amount: number;
   purpose: string;
   status: "PENDING" | "APPROVED" | "DISBURSED" | "COMPLETED" | "REJECTED";
@@ -142,7 +142,7 @@ export const getSessionUserLocal = async (token: string | null | undefined) => {
   return user ?? null;
 };
 
-export const createLoanLocal = (userId: string, payload: { type: "PROPERTY" | "BUSINESS" | "EMERGENCY"; amount: number; purpose: string }) => {
+export const createLoanLocal = (userId: string, payload: { type: "GENERAL" | "PROPERTY" | "COMMODITY" | "BUSINESS" | "EMERGENCY"; amount: number; purpose: string }) => {
   const loan: StoredLoan = {
     id: randomUUID(),
     userId,

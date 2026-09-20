@@ -43,17 +43,24 @@ enum TransactionType {
 }
 
 enum LoanType {
+  GENERAL
   PROPERTY
+  COMMODITY
   BUSINESS
   EMERGENCY
 }
 
 enum LoanStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
   PENDING
   APPROVED
   DISBURSED
+  ACTIVE
   COMPLETED
   REJECTED
+  DEFAULTED
 }
 
 model User {
@@ -176,17 +183,70 @@ model ShareTransaction {
 }
 
 model LoanApplication {
-  id          String     @id @default(cuid())
-  userId      String
-  type        LoanType
-  amount      Float
-  purpose     String
-  status      LoanStatus @default(PENDING)
-  reviewedBy  String?
-  reviewedAt  DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String       @id @default(cuid())
+  applicationNo       String       @unique @default(cuid())
+  userId              String
+  loanProductId       String?
+  type                LoanType
+  amount              Float
+  purpose             String
+  repaymentPeriod     Int?
+  repaymentFrequency  String?
+  processingFee       Float        @default(0)
+  totalRepayment      Float?
+  estimatedInstallment Float?
+  status              LoanStatus   @default(SUBMITTED)
+  guarantorName       String?
+  guarantorPhone      String?
+  guarantorAddress    String?
+  guarantorRelationship String?
+  propertyType        String?
+  propertyLocation    String?
+  propertyValue       Float?
+  propertyDocuments   String?
+  supportingDocuments String?
+  documents           String?
+  commodityItems      String?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loanProduct         LoanProduct? @relation(fields: [loanProductId], references: [id], onDelete: SetNull)
+}
+
+model LoanProduct {
+  id                    String       @id @default(cuid())
+  name                  String
+  type                  LoanType     @unique
+  maximumAmount        Float
+  minimumAmount        Float
+  processingFeeType    String       @default("PERCENTAGE")
+  processingFeeValue   Float        @default(0)
+  repaymentPeriod      Int
+  repaymentFrequency   String       @default("MONTHLY")
+  eligibilityRequirements String
+  requiredSavings      Float        @default(0)
+  requiredShares        Int          @default(0)
+  guarantorRequirements String
+  documentationRequirements String
+  terms                String
+  active                Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  applications          LoanApplication[]
+}
+
+model Commodity {
+  id               String   @id @default(cuid())
+  name             String
+  description      String
+  price            Float
+  availableQuantity Int
+  image            String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Notification {

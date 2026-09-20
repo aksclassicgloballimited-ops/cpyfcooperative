@@ -73,3 +73,9 @@ Approved members are assigned an `ACTIVE`, `SILVER`, or `GOLDEN` membership grad
 Savings entries and reversals are recorded in the `Transaction` ledger with the acting administrator, balance after the entry, status, and reversal reference. Share allocations and reductions are recorded in `ShareTransaction` and update the member's `ShareHolding` in one database transaction. The admin dashboard includes posting controls and a savings CSV export.
 
 Member loan applications are checked against the configured category multiplier and minimum membership period. Members can request any amount up to their current category limit; applications above the limit are rejected by the API.
+
+## Loan management
+
+The `/loans` page lists active General, Property, and Commodity loan products and includes a product-specific calculator. Members apply through `/loans/apply`, a six-step form that captures loan, property, guarantor, and document information. Each submitted application receives a `LOAN/YYYY/XXXXX` application number and is visible in the member dashboard.
+
+Administrators manage product limits, fees, repayment terms, eligibility requirements, activation, and application review from `/admin/loans`. Product configuration is stored in `LoanProduct`; commodity inventory is exposed through `/api/commodities`. Processing fees and repayment totals are calculated from the selected product rather than a universal hard-coded rule.

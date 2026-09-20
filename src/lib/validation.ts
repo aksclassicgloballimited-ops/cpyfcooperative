@@ -29,7 +29,21 @@ export const registrationSchema = z.object({
 });
 
 export const loanApplicationSchema = z.object({
-  type: z.enum(["PROPERTY", "BUSINESS", "EMERGENCY"]),
+  type: z.enum(["GENERAL", "PROPERTY", "COMMODITY", "BUSINESS", "EMERGENCY"]),
   amount: z.coerce.number().positive(),
   purpose: z.string().trim().min(10),
+  loanProductId: z.string().optional(),
+  repaymentPeriod: z.coerce.number().int().positive().optional(),
+  repaymentFrequency: z.string().trim().min(2).optional(),
+  guarantorName: z.string().trim().min(2).optional(),
+  guarantorPhone: z.string().trim().min(7).optional(),
+  guarantorAddress: z.string().trim().min(3).optional(),
+  guarantorRelationship: z.string().trim().min(2).optional(),
+  propertyType: z.string().trim().min(2).optional(),
+  propertyLocation: z.string().trim().min(2).optional(),
+  propertyValue: z.coerce.number().positive().optional(),
+  propertyDocuments: z.string().optional(),
+  supportingDocuments: z.string().optional(),
+  documents: z.string().optional(),
+  commodityItems: z.string().optional(),
 });
