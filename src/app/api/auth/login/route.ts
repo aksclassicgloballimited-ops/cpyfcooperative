@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { seedDemoUsers } from "@/lib/demo-seed";
-import { createSessionLocal, findUserByEmailLocal, sanitizeUser, verifyUserCredentialsLocal } from "@/lib/store";
+import { createSessionLocal } from "@/lib/store";
 
 export async function POST(request: Request) {
   try {
@@ -11,36 +10,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      await seedDemoUsers();
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: { membership: true },
-      });
-      if (!user) {
-        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
-      }
-
-      const isValid = await compare(password, user.passwordHash);
-      if (!isValid) {
-        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
-      }
-
-      const { passwordHash: _passwordHash, ...safeUser } = user;
-      const token = await createSessionLocal(user.id);
-      const response = NextResponse.json({ user: safeUser }, { status: 200 });
-      response.cookies.set("cpyif_session", token, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
-      return response;
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({ error: "Authentication is not configured. Add DATABASE_URL to the deployment environment." }, { status: 503 });
     }
 
-    const user = await verifyUserCredentialsLocal(email, password);
-    if (!user) {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { membership: true },
+    });
+    if (!user || !(await compare(password, user.passwordHash))) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     const token = await createSessionLocal(user.id);
-    const response = NextResponse.json({ user: sanitizeUser(user) }, { status: 200 });
-    response.cookies.set("cpyif_session", token, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
+    const { passwordHash: _passwordHash, ...safeUser } = user;
+    const response = NextResponse.json({ user: safeUser }, { status: 200 });
+    response.cookies.set("cpyif_session", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Login failed";

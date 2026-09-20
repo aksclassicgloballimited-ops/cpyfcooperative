@@ -30,7 +30,7 @@ export default function MemberDashboardPage() {
   const [profile, setProfile] = useState({
     firstName: 'Ada',
     lastName: 'Musa',
-    email: 'member@cpyif.org',
+    email: '',
     phone: '+2348000000002',
     weeklyTarget: '2500',
     membershipType: 'Appearance Member',

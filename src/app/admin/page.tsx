@@ -105,30 +105,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const fallbackQueue: LoanQueueItem[] = [
-    {
-      id: 'demo-1',
-      userId: 'demo-1',
-      type: 'BUSINESS',
-      amount: 250000,
-      purpose: 'Business expansion and working capital',
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-      user: { firstName: 'Faridat', lastName: 'Bello', email: 'faridat@cpyif.org', role: 'MEMBER' },
-    },
-    {
-      id: 'demo-2',
-      userId: 'demo-2',
-      type: 'PROPERTY',
-      amount: 180000,
-      purpose: 'Residential property deposit',
-      status: 'REVIEW',
-      createdAt: new Date().toISOString(),
-      user: { firstName: 'Musa', lastName: 'Adamu', email: 'musa@cpyif.org', role: 'MEMBER' },
-    },
-  ];
-
-  const queue = loanQueue.length ? loanQueue : fallbackQueue;
+  const queue = loanQueue;
 
   const summaryCards = [
     { label: 'Total Members', value: String(members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },

@@ -716,7 +716,7 @@ export default function HomePage() {
 
                     <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                       Email
-                      <input type="email" value={authForm.email} onChange={(event) => handleAuthChange('email', event.target.value)} className="rounded-xl border border-violet-200 bg-transparent px-3 py-2.5 outline-none ring-0 transition focus:border-[#6A11CB]" placeholder="member@cpyif.org" />
+                      <input type="email" value={authForm.email} onChange={(event) => handleAuthChange('email', event.target.value)} className="rounded-xl border border-violet-200 bg-transparent px-3 py-2.5 outline-none ring-0 transition focus:border-[#6A11CB]" placeholder="you@example.com" />
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -725,47 +725,6 @@ export default function HomePage() {
                     </label>
 
                     {authStatus && <div className="rounded-xl bg-violet-50 px-3 py-2 text-sm text-[#4C1D95] dark:bg-violet-950/30 dark:text-violet-200">{authStatus}</div>}
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('login');
-                          setAuthForm({
-                            firstName: '',
-                            lastName: '',
-                            email: 'member@cpyif.org',
-                            phone: '+2348000000002',
-                            password: 'Member@123',
-                            category: 'APPEARANCE',
-                            weeklyTarget: '2500',
-                          });
-                          setAuthStatus('Demo member credentials loaded.');
-                        }}
-                        className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-[#4C1D95] transition hover:bg-violet-100"
-                      >
-                        Demo Member Login
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('login');
-                          setAuthForm({
-                            firstName: '',
-                            lastName: '',
-                            email: 'admin@cpyif.org',
-                            phone: '+2348000000000',
-                            password: 'Admin@123',
-                            category: 'NON_APPEARANCE',
-                            weeklyTarget: '5000',
-                          });
-                          setAuthStatus('Demo admin credentials loaded.');
-                        }}
-                        className="rounded-full border border-violet-200 bg-[#1d1234] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#271741]"
-                      >
-                        Demo Admin Login
-                      </button>
-                    </div>
 
                     <button type="submit" className="w-full rounded-full bg-[#6A11CB] px-5 py-3.5 font-bold text-white transition hover:bg-[#5b0fc4]">
                       {authMode === 'login' ? 'Member Login' : 'Create Account'}
