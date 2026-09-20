@@ -835,7 +835,15 @@ export default function HomePage() {
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#FACC15]">MEMBER PORTAL</h3>
                 <ul className="mt-5 space-y-3 text-sm text-violet-100">
                   {memberPortalLinks.map((link) => (
-                    <li key={link}>{link}</li>
+                    <li key={link}>
+                      {link === 'Executive Login' ? (
+                        <a href="/executive-login" className="transition hover:text-white">
+                          {link}
+                        </a>
+                      ) : (
+                        link
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>
