@@ -22,6 +22,9 @@ const moreNavItems: MenuItem[] = [
   { label: 'Online Meeting', href: '#portal' },
   { label: 'FAQs', href: '#faqs' },
   { label: 'Contact Us', href: '#contact' },
+];
+
+const authNavItems: MenuItem[] = [
   { label: 'Login', href: '#portal', outline: true },
   { label: 'Register Now', href: '#membership', filled: true },
 ];
@@ -242,7 +245,7 @@ export default function HomePage() {
 
         <header className="sticky left-0 top-0 z-40 w-full">
           <div className="section-shell py-4">
-            <div className="rounded-full border border-white/15 bg-white/10 shadow-[0_10px_30px_rgba(17,12,26,0.16)] backdrop-blur-md">
+            <div className="rounded-full border border-white/10 bg-gradient-to-r from-[#4C1D95] via-[#6A11CB] to-[#4C1D95] shadow-[0_10px_30px_rgba(17,12,26,0.35)] backdrop-blur-md">
               <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
                 <a href="#home" className="flex items-center gap-3 text-white">
                   <img src="/cpyf-logo.jpeg" alt="CPYIF logo" className="h-11 w-11 rounded-full border border-white/50 bg-white object-cover shadow-lg" />
@@ -251,26 +254,38 @@ export default function HomePage() {
                   </span>
                 </a>
 
-                <nav className="hidden items-center gap-6 lg:flex">
+                <nav className="hidden items-center gap-1 lg:flex">
                   {mainNavItems.map((item) => (
                     <a
                       key={item.label}
                       href={item.href}
-                      className="text-sm font-medium text-violet-50 transition hover:text-white"
+                      className="group relative px-3 py-2 text-sm font-medium text-violet-50 transition hover:text-white"
                     >
                       {item.label}
+                      <span className="absolute inset-x-3 -bottom-0.5 h-0.5 origin-left scale-x-0 rounded-full bg-white transition-transform duration-300 ease-out group-hover:scale-x-100" />
                     </a>
                   ))}
-                  <div className="h-4 w-px bg-white/25" />
-                  {moreNavItems.slice(0, 4).map((item) => (
-                    <a
-                      key={item.label}
-                      href={item.href}
-                      className="text-sm font-medium text-violet-50 transition hover:text-white"
+                  <div className="mx-2 h-4 w-px bg-white/25" />
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-violet-50 transition hover:text-white"
                     >
-                      {item.label}
-                    </a>
-                  ))}
+                      More
+                      <span className="text-[10px] transition-transform duration-300 ease-out group-hover:rotate-180">▼</span>
+                    </button>
+                    <div className="invisible absolute right-0 top-full z-30 w-52 origin-top-right translate-y-1 rounded-2xl border border-white/10 bg-white/95 p-2 opacity-0 shadow-2xl backdrop-blur-md transition-all duration-200 ease-out group-hover:visible group-hover:translate-y-2 group-hover:opacity-100">
+                      {moreNavItems.map((item) => (
+                        <a
+                          key={item.label}
+                          href={item.href}
+                          className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-[#6A11CB]"
+                        >
+                          {item.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 </nav>
 
                 <div className="flex items-center gap-2">
@@ -278,7 +293,7 @@ export default function HomePage() {
                     type="button"
                     aria-label="Toggle color theme"
                     onClick={() => setDarkMode(!darkMode)}
-                    className="grid h-10 w-10 place-items-center rounded-full border border-white/30 bg-white/10 text-lg text-white transition hover:bg-white/20"
+                    className="grid h-10 w-10 place-items-center rounded-full border border-white/30 bg-white/10 text-lg text-white transition duration-300 hover:bg-white/20 hover:rotate-12"
                   >
                     {darkMode ? '☀' : '☾'}
                   </button>
@@ -293,35 +308,79 @@ export default function HomePage() {
                     aria-label="Toggle menu"
                     aria-expanded={menuOpen}
                     onClick={() => setMenuOpen(!menuOpen)}
-                    className="grid h-10 w-10 place-items-center rounded-full border border-white/30 bg-white/10 text-xl text-white transition hover:bg-white/20 lg:hidden"
+                    className="grid h-10 w-10 place-items-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 lg:hidden"
                   >
-                    {menuOpen ? '✕' : '☰'}
+                    <span className="relative block h-4 w-5">
+                      <span className={`absolute left-0 top-0 h-0.5 w-5 rounded-full bg-white transition-all duration-300 ease-out ${menuOpen ? 'top-[7px] rotate-45' : ''}`} />
+                      <span className={`absolute left-0 top-[7px] h-0.5 w-5 rounded-full bg-white transition-all duration-200 ease-out ${menuOpen ? 'opacity-0' : 'opacity-100'}`} />
+                      <span className={`absolute left-0 top-[14px] h-0.5 w-5 rounded-full bg-white transition-all duration-300 ease-out ${menuOpen ? 'top-[7px] -rotate-45' : ''}`} />
+                    </span>
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {menuOpen && (
-            <nav className="section-shell pb-5 lg:hidden">
-              <div className="grid gap-1 rounded-[1.75rem] bg-white/95 p-4 text-slate-900 shadow-2xl sm:grid-cols-2">
-                {[...mainNavItems, ...moreNavItems].map((item) => (
+          <nav
+            aria-hidden={!menuOpen}
+            className={[
+              'section-shell overflow-hidden transition-all duration-300 ease-out lg:hidden',
+              menuOpen ? 'max-h-[36rem] pb-5 opacity-100' : 'pointer-events-none max-h-0 pb-0 opacity-0',
+            ].join(' ')}
+          >
+            <div className="rounded-[1.75rem] bg-white/95 p-4 text-slate-900 shadow-2xl backdrop-blur-md">
+              <div className="grid gap-1 sm:grid-cols-2">
+                {mainNavItems.map((item, index) => (
                   <a
                     key={item.label}
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
+                    style={{ transitionDelay: menuOpen ? `${index * 40}ms` : '0ms' }}
+                    className={`rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 ease-out hover:bg-violet-50 ${menuOpen ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'}`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+
+              <div className="my-3 flex items-center gap-3 px-1">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-violet-400">More</span>
+                <div className="h-px flex-1 bg-violet-100" />
+              </div>
+
+              <div className="grid gap-1 sm:grid-cols-2">
+                {moreNavItems.map((item, index) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    style={{ transitionDelay: menuOpen ? `${(mainNavItems.length + index) * 40}ms` : '0ms' }}
+                    className={`rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 ease-out hover:bg-violet-50 ${menuOpen ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'}`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 border-t border-violet-100 pt-4 sm:flex-row">
+                {authNavItems.map((item, index) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    style={{ transitionDelay: menuOpen ? `${(mainNavItems.length + moreNavItems.length + index) * 40}ms` : '0ms' }}
                     className={[
-                      'rounded-xl px-4 py-3 text-sm font-medium transition hover:bg-violet-50',
-                      item.filled ? 'bg-[#6A11CB] font-bold text-white hover:bg-[#5b0fc4]' : '',
-                      item.outline ? 'border border-[#6A11CB] text-center text-[#6A11CB]' : '',
+                      'flex-1 rounded-full px-4 py-3 text-center text-sm font-bold transition-all duration-300 ease-out',
+                      item.filled ? 'bg-[#6A11CB] text-white hover:bg-[#5b0fc4]' : 'border border-[#6A11CB] text-[#6A11CB] hover:bg-violet-50',
+                      menuOpen ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0',
                     ].join(' ')}
                   >
                     {item.label}
                   </a>
                 ))}
               </div>
-            </nav>
-          )}
+            </div>
+          </nav>
         </header>
 
         <main>
