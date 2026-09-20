@@ -1,6 +1,6 @@
 # CPYIF Cooperative Platform
 
-A responsive Next.js cooperative platform for the Circle of Prosperous Youth Interest-Free Cooperative (CPYIF). It includes a branded landing page, member dashboard, admin dashboard, and local auth/loan workflow prototypes backed by SQLite or an in-memory fallback store.
+A responsive Next.js cooperative platform for the Circle of Prosperous Youth Interest-Free Cooperative (CPYIF). It includes a branded landing page, member dashboard, admin dashboard, and database-backed auth and loan workflows using PostgreSQL.
 
 ## Stack
 
@@ -8,7 +8,7 @@ A responsive Next.js cooperative platform for the Circle of Prosperous Youth Int
 - TypeScript
 - Tailwind CSS
 - Prisma
-- SQLite for local development
+- PostgreSQL
 
 ## Local development
 
@@ -61,7 +61,7 @@ For preview or local dev, set the corresponding preview/local values as needed.
 
 ## Notes
 
-- SQLite is for local development only.
+- PostgreSQL is required for local and production database-backed authentication.
 - Production deployments must use PostgreSQL.
 - The app includes a local fallback in-memory store when the database is unavailable, but that is not suitable for a live production site because it resets on deploy/restart.
 - The landing page and member/admin dashboards are designed to match the CPYIF brand and cooperative operations flow.
