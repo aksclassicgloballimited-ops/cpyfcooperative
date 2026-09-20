@@ -12,11 +12,35 @@ async function readUpload(value: FormDataEntryValue | undefined, label: string) 
   if (!(value instanceof File) || value.size === 0) {
     throw new Error(`${label} is required`);
   }
+
+  async function nextMembershipNumber() {
+    const year = new Date().getFullYear();
+    const prefix = `CPYF/${year}/`;
+    const latest = await prisma.membership.findFirst({
+      where: { membershipNo: { startsWith: prefix } },
+      orderBy: { membershipNo: "desc" },
+      select: { membershipNo: true },
+    });
+    const sequence = latest ? Number(latest.membershipNo.slice(prefix.length)) + 1 : 1;
+    return `${prefix}${String(sequence).padStart(4, "0")}`;
+  }
   if (value.size > MAX_UPLOAD_BYTES) {
     throw new Error(`${label} must not exceed 25 KB`);
   }
   const bytes = Buffer.from(await value.arrayBuffer()).toString("base64");
   return `data:${value.type || "application/octet-stream"};base64,${bytes}`;
+}
+
+async function nextMembershipNumber() {
+  const year = new Date().getFullYear();
+  const prefix = `CPYF/${year}/`;
+  const latest = await prisma.membership.findFirst({
+    where: { membershipNo: { startsWith: prefix } },
+    orderBy: { membershipNo: "desc" },
+    select: { membershipNo: true },
+  });
+  const sequence = latest ? Number(latest.membershipNo.slice(prefix.length)) + 1 : 1;
+  return `${prefix}${String(sequence).padStart(4, "0")}`;
 }
 
 export async function POST(request: Request) {
@@ -54,6 +78,7 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hash(password, 12);
+    const membershipNo = await nextMembershipNumber();
     const user = await prisma.user.create({
       data: {
         firstName,
@@ -82,7 +107,7 @@ export async function POST(request: Request) {
         membership: {
           create: {
             category,
-            membershipNo: `CPYF-${Date.now()}`,
+            membershipNo,
             weeklyTarget,
           },
         },

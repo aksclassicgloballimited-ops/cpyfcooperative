@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
+import Image from 'next/image';
 
 const inputClass = 'rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[#6A11CB]';
 
@@ -33,7 +34,7 @@ function RegistrationForm() {
       const response = await fetch('/api/auth/register', { method: 'POST', body: data });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Registration failed');
-      window.location.href = '/member';
+      window.location.href = `/payment?membershipNo=${encodeURIComponent(result.membershipNo ?? '')}`;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Registration failed');
       setSubmitting(false);
@@ -43,7 +44,7 @@ function RegistrationForm() {
   return (
     <main className="min-h-screen bg-[#f7f4ff] px-4 py-10 text-[#1d1731] sm:px-6">
       <div className="mx-auto max-w-4xl">
-        <a href="/" className="text-sm font-bold text-[#6A11CB]">â† Back to CPYIF</a>
+        <a href="/" className="flex items-center gap-3 text-sm font-bold text-[#6A11CB]"><Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={40} height={40} className="rounded-full" /> Back to CPYIF</a>
         <div className="mt-5 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-7 text-white">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Membership registration</p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Join CPYIF</h1>
@@ -106,4 +107,3 @@ function FileField({ name, label }: { name: string; label: string }) {
 export default function RegisterPage() {
   return <Suspense fallback={<main className="min-h-screen bg-[#f7f4ff] p-10 text-[#1d1731]">Loading registration form...</main>}><RegistrationForm /></Suspense>;
 }
-

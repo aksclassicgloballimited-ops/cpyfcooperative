@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const notifications = [
   'Weekly meeting scheduled for Wednesday at 7:00 PM.',
@@ -23,6 +24,7 @@ export default function MemberDashboardPage() {
   const [memberRole, setMemberRole] = useState('MEMBER');
   const [weeklyTarget, setWeeklyTarget] = useState(2500);
   const [grade, setGrade] = useState('ACTIVE');
+  const [membershipStatus, setMembershipStatus] = useState('PENDING');
   const [loanApplications, setLoanApplications] = useState<Array<{ type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
   const [loanForm, setLoanForm] = useState({ type: 'BUSINESS', amount: '250000', purpose: 'Business expansion and working capital' });
   const [loanMessage, setLoanMessage] = useState('');
@@ -57,6 +59,7 @@ export default function MemberDashboardPage() {
           setMembershipNo(data.user.membership?.membershipNo || membershipNo);
           setWeeklyTarget(Number(data.user.membership?.weeklyTarget || weeklyTarget));
           setGrade(data.user.membership?.grade || 'ACTIVE');
+          setMembershipStatus(data.user.membership?.status || 'PENDING');
           setMemberRole(data.user.role || 'MEMBER');
           setProfile((current) => ({
             ...current,
@@ -160,11 +163,20 @@ export default function MemberDashboardPage() {
   return (
     <main className="min-h-screen bg-[#f5f3ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <a href="/" className="mb-5 flex items-center gap-3 text-sm font-bold text-[#6A11CB]"><Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={40} height={40} className="rounded-full" /> CPYIF Cooperative</a>
         <div className="mb-8 flex flex-col gap-4 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-6 text-white shadow-[0_18px_60px_rgba(76,29,149,0.22)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Member Dashboard</p>
             <h1 className="mt-2 text-3xl font-bold">{memberTitle}</h1>
           </div>
+
+          {membershipStatus !== 'ACTIVE' && (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+              <div className="font-bold">Membership status: {membershipStatus}</div>
+              <p className="mt-1 text-sm">Your application is pending executive/admin approval. Complete your registration payment if you have not already done so.</p>
+              <a href="/payment" className="mt-3 inline-flex rounded-full bg-[#6A11CB] px-4 py-2 text-sm font-bold text-white">View payment instructions</a>
+            </div>
+          )}
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
             Membership No: {membershipNo}
           </div>

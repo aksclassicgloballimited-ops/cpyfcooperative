@@ -90,3 +90,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  const sessionUser = await getUserFromRequest(request);
+  if (!sessionUser || (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE")) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  try {
+    const { userId, status } = await request.json();
+    if (!userId || !["ACTIVE", "REJECTED", "SUSPENDED"].includes(status)) {
+      return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
+    }
+    const member = await prisma.membership.update({
+      where: { userId },
+      data: {
+        status,
+        joinedAt: status === "ACTIVE" ? new Date() : undefined,
+      },
+      include: { user: { select: { firstName: true, lastName: true, email: true } } },
+    });
+    return NextResponse.json({ member }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Member status update failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

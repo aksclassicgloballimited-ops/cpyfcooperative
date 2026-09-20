@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type MemberRecord = {
   id: string;
@@ -10,7 +11,7 @@ type MemberRecord = {
   email: string;
   phone: string;
   role: string;
-  membership?: { category?: string; membershipNo?: string; weeklyTarget?: number | null } | null;
+  membership?: { category?: string; membershipNo?: string; weeklyTarget?: number | null; status?: string; paymentSubmittedAt?: string | null } | null;
 };
 
 type LoanQueueItem = {
@@ -105,6 +106,15 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleMemberStatus = async (userId: string, status: 'ACTIVE' | 'REJECTED') => {
+    const response = await fetch('/api/members', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, status }),
+    });
+    if (response.ok) await loadAdminData();
+  };
+
   const queue = loanQueue;
 
   const summaryCards = [
@@ -117,6 +127,7 @@ export default function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-[#f8f5ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <a href="/" className="mb-5 flex items-center gap-3 text-sm font-bold text-[#6A11CB]"><Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={40} height={40} className="rounded-full" /> CPYIF Cooperative</a>
         <div className="mb-8 flex flex-col gap-4 rounded-[2rem] bg-[#1d1234] p-6 text-white shadow-[0_18px_60px_rgba(29,18,52,0.22)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-200">Admin Console</p>
@@ -133,6 +144,29 @@ export default function AdminDashboardPage() {
             </div>
           ))}
         </div>
+
+        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-[#1d1731]">Membership Applications</h2>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{members.filter((member) => member.membership?.status === 'PENDING').length} pending</span>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-violet-100">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Membership No.</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead>
+              <tbody>
+                {members.map((member) => (
+                  <tr key={member.id} className="border-t border-violet-100">
+                    <td className="px-4 py-3"><div className="font-semibold">{member.firstName} {member.lastName}</div><div className="text-xs text-slate-500">{member.email}</div></td>
+                    <td className="px-4 py-3 font-semibold">{member.membership?.membershipNo || '—'}</td>
+                    <td className="px-4 py-3">{member.membership?.paymentSubmittedAt ? 'Submitted' : 'Not submitted'}</td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold">{member.membership?.status || 'PENDING'}</span></td>
+                    <td className="px-4 py-3">{member.membership?.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => handleMemberStatus(member.id, 'ACTIVE')} className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => handleMemberStatus(member.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <div className="mt-8 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
           <section id="review-queue" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">

@@ -107,6 +107,7 @@ model Membership {
   status       MembershipStatus   @default(PENDING)
   membershipNo String             @unique
   weeklyTarget Float
+  paymentSubmittedAt DateTime?
   joinedAt     DateTime?
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   shares       ShareHolding[]
