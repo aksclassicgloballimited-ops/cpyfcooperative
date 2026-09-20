@@ -63,6 +63,24 @@ model User {
   firstName    String
   lastName     String
   phone        String
+  dateOfBirth  DateTime?
+  gender       String?
+  address      String?
+  state        String?
+  localGovernment String?
+  nationality  String?
+  occupation   String?
+  incomeRange  String?
+  emergencyName String?
+  emergencyPhone String?
+  emergencyRelationship String?
+  nomineeName  String?
+  nomineePhone String?
+  nomineeRelationship String?
+  nomineeAddress String?
+  passportPhoto String?
+  identificationDocument String?
+  termsAcceptedAt DateTime?
   role         Role      @default(MEMBER)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

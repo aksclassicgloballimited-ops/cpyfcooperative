@@ -520,12 +520,12 @@ export default function HomePage() {
                       ))}
                     </ul>
 
-                    <button type="button" className={[
+                    <a href={`/register?category=${plan.primary ? 'APPEARANCE' : 'NON_APPEARANCE'}`} className={[
                       'mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3.5 font-semibold transition',
                       plan.primary ? 'bg-[#6A11CB] text-white hover:bg-[#5b0fc4]' : 'border border-[#6A11CB] bg-transparent text-[#6A11CB] hover:bg-violet-50 dark:hover:bg-violet-950/30',
                     ].join(' ')}>
                       Get Started
-                    </button>
+                    </a>
                   </div>
                 ))}
               </div>
