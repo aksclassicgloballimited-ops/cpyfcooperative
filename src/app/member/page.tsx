@@ -34,6 +34,7 @@ export default function MemberDashboardPage() {
   const [loanForm, setLoanForm] = useState({ type: 'GENERAL', amount: '250000', purpose: 'Business expansion and working capital' });
   const [loanMessage, setLoanMessage] = useState('');
   const [profileMessage, setProfileMessage] = useState('');
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [profile, setProfile] = useState({
     firstName: 'Ada',
     lastName: 'Musa',
@@ -118,6 +119,7 @@ export default function MemberDashboardPage() {
       }
     };
     loadFinancials();
+    fetch('/api/notifications', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => { if (data) setUnreadNotifications(Number(data.unread || 0)); }).catch(() => undefined);
   }, [router]);
 
   const summaryCards = [
@@ -205,6 +207,11 @@ export default function MemberDashboardPage() {
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
             Membership No: {membershipNo}
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/member/notifications" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Notifications {unreadNotifications > 0 && <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-[#1d1234]">{unreadNotifications}</span>}</Link>
+            <Link href="/member/guarantors" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Guarantors</Link>
+            <Link href="/member/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</Link>
+          </div>
           <button
             type="button"
             onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }}
@@ -285,7 +292,7 @@ export default function MemberDashboardPage() {
           <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#1d1731]">Recent Transactions</h2>
-              <a href="#" className="text-sm font-semibold text-[#6A11CB]">View All</a>
+              <Link href="/member/transactions" className="text-sm font-semibold text-[#6A11CB]">View All</Link>
             </div>
 
             <div className="overflow-hidden rounded-[1.25rem] border border-violet-100">

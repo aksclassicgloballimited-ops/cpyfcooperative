@@ -95,6 +95,9 @@ model User {
   sessions     Session[]
   transactions Transaction[]
   loans        LoanApplication[]
+  notifications Notification[]
+  guarantorRequestsMade GuarantorRequest[] @relation("GuarantorRequester")
+  guarantorRequestsReceived GuarantorRequest[] @relation("GuarantorMember")
 }
 
 model Session {
@@ -200,6 +203,7 @@ model LoanApplication {
   guarantorPhone      String?
   guarantorAddress    String?
   guarantorRelationship String?
+  guarantorMembershipNo String?
   propertyType        String?
   propertyLocation    String?
   propertyValue       Float?
@@ -213,6 +217,21 @@ model LoanApplication {
   updatedAt           DateTime     @updatedAt
   user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   loanProduct         LoanProduct? @relation(fields: [loanProductId], references: [id], onDelete: SetNull)
+  guarantorRequest     GuarantorRequest?
+}
+
+model GuarantorRequest {
+  id            String   @id @default(cuid())
+  loanApplicationId String @unique
+  requesterId   String
+  guarantorId   String
+  guarantorMembershipNo String
+  status        String   @default("PENDING")
+  respondedAt   DateTime?
+  createdAt     DateTime @default(now())
+  loanApplication LoanApplication @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  requester     User @relation("GuarantorRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  guarantor     User @relation("GuarantorMember", fields: [guarantorId], references: [id], onDelete: Cascade)
 }
 
 model LoanProduct {
@@ -256,4 +275,5 @@ model Notification {
   body      String
   readAt    DateTime?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -39,6 +39,7 @@ export const loanApplicationSchema = z.object({
   guarantorPhone: z.string().trim().min(7).optional(),
   guarantorAddress: z.string().trim().min(3).optional(),
   guarantorRelationship: z.string().trim().min(2).optional(),
+  guarantorMembershipNo: z.string().trim().min(3).optional(),
   propertyType: z.string().trim().min(2).optional(),
   propertyLocation: z.string().trim().min(2).optional(),
   propertyValue: z.coerce.number().positive().optional(),

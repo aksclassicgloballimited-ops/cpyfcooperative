@@ -102,13 +102,14 @@ export async function PUT(request: Request) {
     if (!userId || !["ACTIVE", "REJECTED", "SUSPENDED"].includes(status)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
-    const member = await prisma.membership.update({
-      where: { userId },
-      data: {
-        status,
-        joinedAt: status === "ACTIVE" ? new Date() : undefined,
-      },
-      include: { user: { select: { firstName: true, lastName: true, email: true } } },
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.membership.update({
+        where: { userId },
+        data: { status, joinedAt: status === "ACTIVE" ? new Date() : undefined },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+      });
+      await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
+      return updated;
     });
     return NextResponse.json({ member }, { status: 200 });
   } catch (error) {

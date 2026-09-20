@@ -107,7 +107,17 @@ export async function POST(request: Request) {
       const fee = product.processingFeeType === "PERCENTAGE" ? parsed.data.amount * product.processingFeeValue / 100 : product.processingFeeValue;
       const period = parsed.data.repaymentPeriod || product.repaymentPeriod;
       const totalRepayment = parsed.data.amount + fee;
-      const created = await prisma.loanApplication.create({
+      let guarantor: { id: string; membershipNo: string } | null = null;
+      if (parsed.data.guarantorMembershipNo) {
+        const candidate = await prisma.membership.findUnique({ where: { membershipNo: parsed.data.guarantorMembershipNo }, select: { userId: true, membershipNo: true, status: true, joinedAt: true } });
+        const months = candidate?.joinedAt ? Math.floor((Date.now() - candidate.joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)) : 0;
+        if (!candidate || candidate.status !== "ACTIVE" || candidate.userId === sessionUser.id || months < 6) {
+          return NextResponse.json({ error: "The guarantor must be an active cooperative member for at least 6 months" }, { status: 400 });
+        }
+        guarantor = { id: candidate.userId, membershipNo: candidate.membershipNo };
+      }
+      const created = await prisma.$transaction(async (tx) => {
+        const application = await tx.loanApplication.create({
         data: {
           applicationNo: `LOAN/${new Date().getFullYear()}/${randomUUID().replaceAll("-", "").slice(0, 5).toUpperCase()}`,
           userId: sessionUser.id,
@@ -124,6 +134,7 @@ export async function POST(request: Request) {
           guarantorPhone: parsed.data.guarantorPhone,
           guarantorAddress: parsed.data.guarantorAddress,
           guarantorRelationship: parsed.data.guarantorRelationship,
+          guarantorMembershipNo: guarantor?.membershipNo,
           propertyType: parsed.data.propertyType,
           propertyLocation: parsed.data.propertyLocation,
           propertyValue: parsed.data.propertyValue,
@@ -132,6 +143,13 @@ export async function POST(request: Request) {
           documents: parsed.data.documents,
           commodityItems: parsed.data.commodityItems,
         },
+        });
+        await tx.notification.create({ data: { userId: sessionUser.id, title: "Loan application received", body: `Your ${product.name} application has been submitted for review.` } });
+        if (guarantor) {
+          await tx.guarantorRequest.create({ data: { loanApplicationId: application.id, requesterId: sessionUser.id, guarantorId: guarantor.id, guarantorMembershipNo: guarantor.membershipNo } });
+          await tx.notification.create({ data: { userId: guarantor.id, title: "Guarantor request pending", body: `${sessionUser.firstName} ${sessionUser.lastName} requested you as a guarantor.` } });
+        }
+        return application;
       });
 
       return NextResponse.json({ message: "Loan application submitted", loan: created }, { status: 201 });
@@ -169,13 +187,18 @@ export async function PUT(request: Request) {
     }
 
     if (process.env.DATABASE_URL) {
-      const updated = await prisma.loanApplication.update({
-        where: { id },
-        data: {
-          status: normalizedStatus as any,
-          reviewedBy: sessionUser.id,
-          reviewedAt: new Date(),
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        const loan = await tx.loanApplication.update({
+          where: { id },
+          data: {
+            status: normalizedStatus as any,
+            reviewedBy: sessionUser.id,
+            reviewedAt: new Date(),
+          },
+        });
+        const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
+        await tx.notification.create({ data: { userId: loan.userId, title, body: `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
+        return loan;
       });
       return NextResponse.json({ message: "Loan status updated", loan: updated }, { status: 200 });
     }
