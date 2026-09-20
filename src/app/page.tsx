@@ -680,7 +680,6 @@ export default function HomePage() {
                 <div className="mt-8 rounded-[1.5rem] border border-violet-200 bg-white p-6 shadow-[0_18px_60px_rgba(76,29,149,0.12)] dark:border-white/10 dark:bg-[#20162f]">
                   <div className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#6A11CB]">LEAD DEVELOPER 3+ YEARS</div>
                   <div className="mt-4 text-2xl font-bold text-[#1d1731] dark:text-white">Akintunde Kehinde Sofiullahi</div>
-                  <div className="mt-2 text-base text-slate-600 dark:text-slate-300">Fullstack Engineer - React, Node.js, TypeScript, MongoDB, AWS</div>
                 </div>
 
                 <p className="mt-8 text-base leading-7 text-slate-600 dark:text-slate-300">
