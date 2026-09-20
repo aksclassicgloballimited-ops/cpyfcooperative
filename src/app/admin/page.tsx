@@ -31,6 +31,7 @@ type LoanQueueItem = {
 };
 
 type AdminStats = Record<string, number>;
+type SavingsPayment = { id: string; amount: number; transactionNo?: string | null; receipt?: string | null; status: string; createdAt: string; user?: { firstName: string; lastName: string; email: string; membership?: { membershipNo: string } } };
 
 const quickActions = [
   { label: 'Review Applications', href: '#review-queue' },
@@ -46,6 +47,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [financialMessage, setFinancialMessage] = useState('');
   const [stats, setStats] = useState<AdminStats>({});
+  const [savingsPayments, setSavingsPayments] = useState<SavingsPayment[]>([]);
 
   const loadAdminData = async () => {
     try {
@@ -55,6 +57,8 @@ export default function AdminDashboardPage() {
       ]);
       const statsResponse = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       if (statsResponse.ok) setStats((await statsResponse.json()).statistics ?? {});
+      const paymentsResponse = await fetch('/api/savings/payments?scope=all', { cache: 'no-store' });
+      if (paymentsResponse.ok) setSavingsPayments((await paymentsResponse.json()).payments ?? []);
 
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
@@ -139,6 +143,14 @@ export default function AdminDashboardPage() {
     if (response.ok) event.currentTarget.reset();
   };
 
+  const reviewSavingsPayment = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    const reason = status === 'REJECTED' ? window.prompt('Reason for rejecting this payment') || 'Payment could not be verified' : 'Receipt/transaction verified by finance';
+    const response = await fetch('/api/savings/payments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status, reason }) });
+    const data = await response.json();
+    setFinancialMessage(response.ok ? `Savings payment ${status.toLowerCase()}.` : data.error || 'Payment review failed');
+    if (response.ok) await loadAdminData();
+  };
+
   const queue = loanQueue;
 
   const summaryCards = [
@@ -204,6 +216,11 @@ export default function AdminDashboardPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between"><div><h2 className="text-2xl font-bold">Savings Payment Approvals</h2><p className="mt-1 text-sm text-slate-600">Approved payments are the only payments added to member savings.</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{savingsPayments.filter((payment) => payment.status === 'PENDING').length} pending</span></div>
+          <div className="overflow-x-auto rounded-xl border border-violet-100"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead><tbody>{savingsPayments.map((payment) => <tr key={payment.id} className="border-t border-violet-100"><td className="px-4 py-3"><b>{payment.user?.firstName} {payment.user?.lastName}</b><span className="block text-xs text-slate-500">{payment.user?.membership?.membershipNo}</span></td><td className="px-4 py-3 font-bold">₦{payment.amount.toLocaleString()}</td><td className="px-4 py-3">{payment.transactionNo || 'Not provided'}</td><td className="px-4 py-3">{payment.receipt ? <a href={payment.receipt} download={`receipt-${payment.id}`} className="font-bold text-[#6A11CB]">View receipt</a> : '—'}</td><td className="px-4 py-3">{payment.status}</td><td className="px-4 py-3">{payment.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'APPROVED')} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td></tr>)}</tbody></table>{!savingsPayments.length && <p className="p-8 text-center text-sm text-slate-500">No savings payments have been submitted.</p>}</div>
         </section>
 
         <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">

@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
 import Image from 'next/image';
@@ -13,6 +13,46 @@ function RegistrationForm() {
   const category = searchParams.get('category') === 'NON_APPEARANCE' ? 'NON_APPEARANCE' : 'APPEARANCE';
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  useEffect(() => {
+    const form = document.querySelector<HTMLFormElement>('[data-registration-form]');
+    if (!form) return;
+    const saved = sessionStorage.getItem('cpyif-registration-draft');
+    if (saved) {
+      try {
+        const values = JSON.parse(saved) as Record<string, string>;
+        Object.entries(values).forEach(([name, value]) => {
+          const field = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+          if (field && field.type !== 'file') field.value = value;
+        });
+        setHasDraft(true);
+      } catch {
+        sessionStorage.removeItem('cpyif-registration-draft');
+      }
+    }
+    const saveDraft = () => {
+      const values: Record<string, string> = {};
+      Array.from(form.elements).forEach((element) => {
+        const field = element as HTMLInputElement | HTMLSelectElement;
+        if (field.name && field.type !== 'file' && field.type !== 'password' && field.type !== 'checkbox') values[field.name] = field.value;
+      });
+      if (Object.values(values).some(Boolean)) sessionStorage.setItem('cpyif-registration-draft', JSON.stringify(values));
+    };
+    const warnBeforeExit = (event: BeforeUnloadEvent) => {
+      if (!submitting) {
+        saveDraft();
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    form.addEventListener('input', saveDraft);
+    window.addEventListener('beforeunload', warnBeforeExit);
+    return () => {
+      form.removeEventListener('input', saveDraft);
+      window.removeEventListener('beforeunload', warnBeforeExit);
+    };
+  }, [submitting]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,6 +74,7 @@ function RegistrationForm() {
       const response = await fetch('/api/auth/register', { method: 'POST', body: data });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Registration failed');
+      sessionStorage.removeItem('cpyif-registration-draft');
       window.location.href = `/payment?membershipNo=${encodeURIComponent(result.membershipNo ?? '')}`;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Registration failed');
@@ -50,7 +91,8 @@ function RegistrationForm() {
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Join CPYIF</h1>
           <p className="mt-2 text-violet-100">Complete your information to create your secure member account.</p>
         </div>
-        <form onSubmit={submit} className="mt-6 space-y-6">
+        {hasDraft && <p className="mt-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">Your personal information draft was restored. Complete the form before leaving this page.</p>}
+        <form data-registration-form onSubmit={submit} className="mt-6 space-y-6">
           <Section title="Personal Information">
             <Field name="firstName" label="First Name" required /><Field name="lastName" label="Last Name" required />
             <Field name="dateOfBirth" label="Date of Birth" type="date" required />

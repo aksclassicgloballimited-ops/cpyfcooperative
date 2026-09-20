@@ -183,7 +183,7 @@ export default function MemberDashboardPage() {
 
   const handleProfileSave = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setProfileMessage('Profile information saved successfully.');
+    setProfileMessage('Personal savings goal updated.');
     setWeeklyTarget(Number(profile.weeklyTarget || 2500));
   };
 
@@ -374,13 +374,18 @@ export default function MemberDashboardPage() {
               <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">{memberRole}</span>
             </div>
 
+            <p className="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+              🔒 Personal information was captured at registration and is locked. Contact an administrator if any of these details need to be corrected.
+            </p>
+
             <form onSubmit={handleProfileSave} className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 First Name
                 <input
                   value={profile.firstName}
-                  onChange={(event) => setProfile((current) => ({ ...current, firstName: event.target.value }))}
-                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                  readOnly
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-violet-100 bg-slate-100 px-3 py-2.5 text-slate-500 outline-none"
                 />
               </label>
 
@@ -388,8 +393,9 @@ export default function MemberDashboardPage() {
                 Last Name
                 <input
                   value={profile.lastName}
-                  onChange={(event) => setProfile((current) => ({ ...current, lastName: event.target.value }))}
-                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                  readOnly
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-violet-100 bg-slate-100 px-3 py-2.5 text-slate-500 outline-none"
                 />
               </label>
 
@@ -398,8 +404,9 @@ export default function MemberDashboardPage() {
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
-                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                  readOnly
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-violet-100 bg-slate-100 px-3 py-2.5 text-slate-500 outline-none"
                 />
               </label>
 
@@ -407,21 +414,20 @@ export default function MemberDashboardPage() {
                 Phone Number
                 <input
                   value={profile.phone}
-                  onChange={(event) => setProfile((current) => ({ ...current, phone: event.target.value }))}
-                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
+                  readOnly
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-violet-100 bg-slate-100 px-3 py-2.5 text-slate-500 outline-none"
                 />
               </label>
 
               <label className="grid gap-2 text-sm font-medium text-slate-700">
                 Membership Type
-                <select
+                <input
                   value={profile.membershipType}
-                  onChange={(event) => setProfile((current) => ({ ...current, membershipType: event.target.value }))}
-                  className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
-                >
-                  <option>Appearance Member</option>
-                  <option>Non-Appearance Member</option>
-                </select>
+                  readOnly
+                  disabled
+                  className="cursor-not-allowed rounded-xl border border-violet-100 bg-slate-100 px-3 py-2.5 text-slate-500 outline-none"
+                />
               </label>
 
               <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
@@ -432,13 +438,14 @@ export default function MemberDashboardPage() {
                   onChange={(event) => setProfile((current) => ({ ...current, weeklyTarget: event.target.value }))}
                   className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 outline-none transition focus:border-[#6A11CB]"
                 />
+                <span className="text-xs font-normal text-slate-500">This is a personal savings goal, not your official weekly savings requirement.</span>
               </label>
 
               {profileMessage && <div className="md:col-span-2 rounded-xl bg-violet-50 px-3 py-2 text-sm text-[#4C1D95]">{profileMessage}</div>}
 
               <div className="md:col-span-2">
                 <button type="submit" className="rounded-full bg-[#6A11CB] px-5 py-3 font-bold text-white transition hover:bg-[#5b0fc4]">
-                  Save Changes
+                  Save Savings Goal
                 </button>
               </div>
             </form>
