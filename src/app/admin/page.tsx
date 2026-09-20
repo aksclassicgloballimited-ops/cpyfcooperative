@@ -11,7 +11,7 @@ type MemberRecord = {
   email: string;
   phone: string;
   role: string;
-  membership?: { category?: string; membershipNo?: string; weeklyTarget?: number | null; status?: string; paymentSubmittedAt?: string | null } | null;
+  membership?: { id?: string; category?: string; grade?: string; membershipNo?: string; weeklyTarget?: number | null; status?: string; paymentSubmittedAt?: string | null } | null;
 };
 
 type LoanQueueItem = {
@@ -42,6 +42,7 @@ export default function AdminDashboardPage() {
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [loanQueue, setLoanQueue] = useState<LoanQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [financialMessage, setFinancialMessage] = useState('');
 
   const loadAdminData = async () => {
     try {
@@ -115,6 +116,24 @@ export default function AdminDashboardPage() {
     if (response.ok) await loadAdminData();
   };
 
+  const addSavings = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch('/api/savings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: form.get('userId'), amount: Number(form.get('amount')), description: form.get('description') }) });
+    const data = await response.json();
+    setFinancialMessage(response.ok ? 'Savings transaction posted and added to the audit trail.' : data.error || 'Unable to post savings.');
+    if (response.ok) event.currentTarget.reset();
+  };
+
+  const adjustShares = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch('/api/shares', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ membershipId: form.get('membershipId'), units: Number(form.get('units')), unitPrice: Number(form.get('unitPrice')), type: 'ADMIN_ADJUSTMENT', description: form.get('description') }) });
+    const data = await response.json();
+    setFinancialMessage(response.ok ? 'Share holding updated and adjustment recorded.' : data.error || 'Unable to update shares.');
+    if (response.ok) event.currentTarget.reset();
+  };
+
   const queue = loanQueue;
 
   const summaryCards = [
@@ -133,7 +152,10 @@ export default function AdminDashboardPage() {
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-200">Admin Console</p>
             <h1 className="mt-2 text-3xl font-bold">CPYIF Executive Dashboard</h1>
           </div>
-          <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Executive Access</div>
+          <div className="flex flex-wrap gap-2">
+            <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>
+            <button type="button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Logout</button>
+          </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -165,6 +187,38 @@ export default function AdminDashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">Financial Controls</h2>
+              <p className="mt-1 text-sm text-slate-600">Every adjustment is recorded with the acting administrator and a timestamp.</p>
+            </div>
+            <a href="/api/savings?scope=all&format=csv" className="rounded-full border border-violet-200 px-4 py-2 text-sm font-bold text-[#6A11CB]">Export Savings CSV</a>
+          </div>
+          {financialMessage && <p className="mt-4 rounded-xl bg-violet-50 px-4 py-3 text-sm font-semibold text-[#4C1D95]">{financialMessage}</p>}
+          <div className="mt-5 grid gap-6 lg:grid-cols-2">
+            <form onSubmit={addSavings} className="rounded-2xl bg-violet-50 p-5">
+              <h3 className="font-bold">Add Savings</h3>
+              <div className="mt-4 grid gap-3">
+                <select name="userId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}</select>
+                <input name="amount" required type="number" min="1" placeholder="Amount (₦)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="description" required placeholder="Description" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Post Savings</button>
+              </div>
+            </form>
+            <form onSubmit={adjustShares} className="rounded-2xl bg-violet-50 p-5">
+              <h3 className="font-bold">Add or Reduce Shares</h3>
+              <div className="mt-4 grid gap-3">
+                <select name="membershipId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select member</option>{members.filter((member) => member.membership?.id).map((member) => <option key={member.membership?.id} value={member.membership?.id}>{member.firstName} {member.lastName}</option>)}</select>
+                <input name="units" required type="number" placeholder="Units (use negative to reduce)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="unitPrice" required type="number" min="1" placeholder="Unit price (₦)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="description" required placeholder="Reason for adjustment" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Update Shares</button>
+              </div>
+            </form>
           </div>
         </section>
 

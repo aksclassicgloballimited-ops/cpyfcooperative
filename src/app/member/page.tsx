@@ -24,7 +24,11 @@ export default function MemberDashboardPage() {
   const [memberRole, setMemberRole] = useState('MEMBER');
   const [weeklyTarget, setWeeklyTarget] = useState(2500);
   const [grade, setGrade] = useState('ACTIVE');
+  const [categoryLabel, setCategoryLabel] = useState('ACTIVE MEMBER');
   const [membershipStatus, setMembershipStatus] = useState('PENDING');
+  const [registrationDate, setRegistrationDate] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [financials, setFinancials] = useState({ savings: 0, weeklySavings: 0, shares: 0, shareValue: 0, outstandingLoan: 0, repayments: 0 });
   const [loanApplications, setLoanApplications] = useState<Array<{ type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
   const [loanForm, setLoanForm] = useState({ type: 'BUSINESS', amount: '250000', purpose: 'Business expansion and working capital' });
   const [loanMessage, setLoanMessage] = useState('');
@@ -59,7 +63,10 @@ export default function MemberDashboardPage() {
           setMembershipNo(data.user.membership?.membershipNo || membershipNo);
           setWeeklyTarget(Number(data.user.membership?.weeklyTarget || weeklyTarget));
           setGrade(data.user.membership?.grade || 'ACTIVE');
+          setCategoryLabel(data.user.membership?.grade === 'SILVER' ? 'SILVER MEMBER' : data.user.membership?.grade === 'GOLDEN' ? 'GOLDEN MEMBER' : 'ACTIVE MEMBER');
           setMembershipStatus(data.user.membership?.status || 'PENDING');
+          setRegistrationDate(data.user.membership?.joinedAt || data.user.createdAt || '');
+          setProfilePhoto(data.user.passportPhoto || '');
           setMemberRole(data.user.role || 'MEMBER');
           setProfile((current) => ({
             ...current,
@@ -91,25 +98,42 @@ export default function MemberDashboardPage() {
 
     loadUser();
     loadLoans();
+    const loadFinancials = async () => {
+      const [savingsResponse, sharesResponse] = await Promise.all([
+        fetch('/api/savings', { cache: 'no-store' }),
+        fetch('/api/shares', { cache: 'no-store' }),
+      ]);
+      if (savingsResponse.ok) {
+        const savings = await savingsResponse.json();
+        const entries = (savings.transactions ?? []) as Array<{ amount: number; createdAt: string; status: string; reversedAt?: string | null }>;
+        const currentWeek = entries.filter((entry) => new Date(entry.createdAt).getTime() > Date.now() - 7 * 86400000).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        setFinancials((current) => ({ ...current, savings: Number(savings.totalSavings || 0), weeklySavings: currentWeek }));
+      }
+      if (sharesResponse.ok) {
+        const shares = await sharesResponse.json();
+        const units = (shares.holdings ?? []).reduce((sum: number, item: { units?: number }) => sum + Number(item.units || 0), 0);
+        const value = (shares.holdings ?? []).reduce((sum: number, item: { units?: number; unitPrice?: number }) => sum + Number(item.units || 0) * Number(item.unitPrice || 0), 0);
+        setFinancials((current) => ({ ...current, shares: units, shareValue: value }));
+      }
+    };
+    loadFinancials();
   }, [router]);
 
-  const totalSavings = weeklyTarget * 12 * 2;
-  const activeLoanTotal = loanApplications.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const dividendAmount = Math.round(totalSavings * 0.08);
-  const shareUnits = Math.max(4, Math.round(totalSavings / 50000));
-  const loanCapacity = Math.min(3, Math.max(1, Math.round((weeklyTarget / 2500) + 1)));
-
   const summaryCards = [
-    { label: 'Total Savings', value: `₦${totalSavings.toLocaleString()}`, tone: 'bg-violet-50 text-[#6A11CB]' },
-    { label: 'Active Loan', value: `₦${activeLoanTotal.toLocaleString()}`, tone: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Dividend', value: `₦${dividendAmount.toLocaleString()}`, tone: 'bg-amber-50 text-amber-600' },
-    { label: 'Membership Grade', value: grade, tone: 'bg-sky-50 text-sky-600' },
+    { label: 'Total Savings', value: `₦${financials.savings.toLocaleString()}`, tone: 'bg-violet-50 text-[#6A11CB]' },
+    { label: 'Weekly Savings', value: `₦${financials.weeklySavings.toLocaleString()}`, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'Total Shares', value: `${financials.shares} units`, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Available Loan', value: `₦${(financials.savings * (grade === 'ACTIVE' ? 2 : 3)).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
+    { label: 'Outstanding Loan', value: `₦${loanApplications.reduce((sum, item) => sum + Number(item.amount || 0), 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600' },
+    { label: 'Account Balance', value: `₦${financials.savings.toLocaleString()}`, tone: 'bg-indigo-50 text-indigo-600' },
+    { label: 'Property Loan Balance', value: '₦0', tone: 'bg-orange-50 text-orange-600' },
+    { label: 'Commodity Loan Balance', value: '₦0', tone: 'bg-cyan-50 text-cyan-600' },
   ];
 
   const shareProgress = [
-    { label: 'Share Units', value: `${shareUnits} Units`, tone: 'bg-violet-50 text-[#6A11CB]' },
+    { label: 'Share Units', value: `${financials.shares} Units`, tone: 'bg-violet-50 text-[#6A11CB]' },
     { label: 'Weekly Target', value: `₦${weeklyTarget.toLocaleString()}`, tone: 'bg-amber-50 text-amber-600' },
-    { label: 'Loan Capacity', value: `${loanCapacity}x Savings`, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Share Value', value: `₦${financials.shareValue.toLocaleString()}`, tone: 'bg-emerald-50 text-emerald-600' },
   ];
 
   const recentTransactions = loanApplications.length > 0 ? loanApplications.slice(0, 4).map((loan) => ({
@@ -180,7 +204,33 @@ export default function MemberDashboardPage() {
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
             Membership No: {membershipNo}
           </div>
+          <button
+            type="button"
+            onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }}
+            className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold"
+          >
+            Logout
+          </button>
         </div>
+
+        <section className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
+          {profilePhoto ? <img src={profilePhoto} alt="Profile" className="h-20 w-20 rounded-full object-cover" /> : <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-100 text-2xl font-bold text-[#6A11CB]">{profile.firstName.slice(0, 1)}{profile.lastName.slice(0, 1)}</div>}
+          <div className="flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Membership Profile</p>
+            <h2 className="mt-1 text-2xl font-bold">{profile.firstName} {profile.lastName}</h2>
+            <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
+              <span>{membershipNo}</span>
+              <span>•</span>
+              <span>{registrationDate ? new Date(registrationDate).toLocaleDateString() : 'Registration pending'}</span>
+              <span>•</span>
+              <span>{membershipStatus}</span>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] px-5 py-4 text-center text-white">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-violet-100">Membership Category</p>
+            <p className="mt-1 text-lg font-black">{categoryLabel}</p>
+          </div>
+        </section>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((item) => (

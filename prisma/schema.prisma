@@ -111,6 +111,7 @@ model Membership {
   joinedAt     DateTime?
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   shares       ShareHolding[]
+  shareTransactions ShareTransaction[]
 }
 
 model ShareHolding {
@@ -122,6 +123,29 @@ model ShareHolding {
   membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 }
 
+model MembershipCategoryConfig {
+  id                    String         @id @default(cuid())
+  grade                 MembershipGrade @unique
+  displayName           String
+  durationYears         Int
+  loanMultiplier        Float
+  minMembershipMonths   Int
+  minimumSavings        Float
+  automaticClassification Boolean       @default(false)
+  updatedBy             String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+}
+
+model CooperativeSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Transaction {
   id          String          @id @default(cuid())
   userId      String
@@ -129,8 +153,26 @@ model Transaction {
   amount      Float
   reference   String          @unique
   description String
-  createdAt   DateTime        @default(now())
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String          @default("POSTED")
+  balanceAfter Float?
+  actorId     String?
+  reversedAt  DateTime?
+  reversalOf  String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ShareTransaction {
+  id           String      @id @default(cuid())
+  membershipId String
+  units        Int
+  unitPrice    Float
+  type         String
+  description  String
+  reference    String      @unique
+  actorId      String?
+  createdAt    DateTime    @default(now())
+  membership   Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 }
 
 model LoanApplication {

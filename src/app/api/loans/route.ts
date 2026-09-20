@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { createLoanLocal, loans, users } from "@/lib/store";
 import { loanApplicationSchema } from "@/lib/validation";
+import { getCategoryConfig } from "@/lib/membership";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -72,6 +73,24 @@ export async function POST(request: Request) {
     }
 
     if (process.env.DATABASE_URL) {
+      const membership = await prisma.membership.findUnique({ where: { userId: sessionUser.id } });
+      if (!membership || membership.status !== "ACTIVE") {
+        return NextResponse.json({ error: "Only approved active members may apply for a loan" }, { status: 403 });
+      }
+      const category = await getCategoryConfig(membership.grade);
+      const joinedAt = membership.joinedAt ?? new Date();
+      const membershipMonths = Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
+      if (membershipMonths < category.minMembershipMonths) {
+        return NextResponse.json({ error: `Loan applications become available after ${category.minMembershipMonths} months of membership` }, { status: 403 });
+      }
+      const savings = await prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: { userId: sessionUser.id, type: "SAVINGS", status: "POSTED", reversedAt: null },
+      });
+      const maximum = Number(savings._sum.amount || 0) * category.loanMultiplier;
+      if (parsed.data.amount > maximum) {
+        return NextResponse.json({ error: `Your ${category.displayName} limit is ₦${maximum.toLocaleString()}` }, { status: 400 });
+      }
       const created = await prisma.loanApplication.create({
         data: {
           userId: sessionUser.id,

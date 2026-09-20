@@ -66,3 +66,10 @@ For preview or local dev, set the corresponding preview/local values as needed.
 - Production deployments must use PostgreSQL.
 - The app includes a local fallback in-memory store when the database is unavailable, but that is not suitable for a live production site because it resets on deploy/restart.
 - The landing page and member/admin dashboards are designed to match the CPYIF brand and cooperative operations flow.
+# Membership categories and financial controls
+
+Approved members are assigned an `ACTIVE`, `SILVER`, or `GOLDEN` membership grade. Administrators can configure the display name, category duration, savings threshold, loan multiplier, minimum membership period, and automatic classification from `/admin/settings`.
+
+Savings entries and reversals are recorded in the `Transaction` ledger with the acting administrator, balance after the entry, status, and reversal reference. Share allocations and reductions are recorded in `ShareTransaction` and update the member's `ShareHolding` in one database transaction. The admin dashboard includes posting controls and a savings CSV export.
+
+Member loan applications are checked against the configured category multiplier and minimum membership period. Members can request any amount up to their current category limit; applications above the limit are rejected by the API.
