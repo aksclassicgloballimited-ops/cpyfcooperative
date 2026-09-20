@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 const summaryCards = [
   { label: 'Current Savings', value: '₦1,275,000', tone: 'bg-violet-50 text-[#6A11CB]' },
@@ -22,6 +23,7 @@ export default function SavingsPage() {
   return (
     <main className="min-h-screen bg-[#f5f3ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <Link href="/" className="mb-5 flex items-center gap-3 text-sm font-bold text-[#6A11CB]"><Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={40} height={40} className="rounded-full" /> CPYIF Cooperative</Link>
         <div className="mb-8 flex flex-col gap-4 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-6 text-white shadow-[0_18px_60px_rgba(76,29,149,0.22)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Member Portal</p>
