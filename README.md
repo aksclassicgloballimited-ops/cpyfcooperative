@@ -47,7 +47,7 @@ This app is ready to deploy to Vercel with a real production database.
 npx prisma generate && npx prisma db push && npm run build
 ```
 
-5. Deploy.
+5. Deploy. The build command applies the Prisma schema to the configured PostgreSQL database before compiling the app.
 
 ### Required Vercel environment variables
 
