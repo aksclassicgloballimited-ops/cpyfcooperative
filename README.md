@@ -53,6 +53,7 @@ npx prisma generate && npx prisma db push && npm run build
 
 ```env
 DATABASE_URL="postgresql://postgres:your_password@db.your-project.supabase.co:5432/postgres?sslmode=require"
+DIRECT_URL="postgresql://postgres:your_password@db.your-project.supabase.co:5432/postgres?sslmode=require"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 NEXTAUTH_URL="https://www.cpyfcooperative.com"
 ```
