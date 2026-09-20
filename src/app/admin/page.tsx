@@ -144,8 +144,8 @@ export default function AdminDashboardPage() {
   const summaryCards = [
   { label: 'Total Members', value: String(stats.totalMembers || members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
   { label: 'Active Members', value: `${stats.activeMembers || 0} (${stats.activeAppearance || 0} app. / ${stats.activeNonAppearance || 0} non-app.)`, tone: 'bg-emerald-50 text-emerald-600' },
-  { label: 'Silver Members', value: String(stats.silverMembers || 0), tone: 'bg-slate-100 text-slate-700' },
-  { label: 'Golden Members', value: String(stats.goldenMembers || 0), tone: 'bg-amber-50 text-amber-600' },
+  { label: 'Silver Members', value: `${stats.silverMembers || 0} (${stats.silverAppearance || 0} app. / ${stats.silverNonAppearance || 0} non-app.)`, tone: 'bg-slate-100 text-slate-700' },
+  { label: 'Golden Members', value: `${stats.goldenMembers || 0} (${stats.goldenAppearance || 0} app. / ${stats.goldenNonAppearance || 0} non-app.)`, tone: 'bg-amber-50 text-amber-600' },
   { label: 'Pending Members', value: String(stats.pendingMembers || 0), tone: 'bg-orange-50 text-orange-600' },
   { label: 'Total Savings', value: `₦${Number(stats.totalSavings || 0).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
   { label: 'Total Shares', value: `${stats.totalShares || 0} units`, tone: 'bg-indigo-50 text-indigo-600' },
