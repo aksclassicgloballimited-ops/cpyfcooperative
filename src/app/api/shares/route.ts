@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   const scopeAll = new URL(request.url).searchParams.get("scope") === "all";
-  if (scopeAll && user.role !== "ADMIN" && user.role !== "EXECUTIVE") return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (scopeAll && !can(user.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const holdings = await prisma.shareHolding.findMany({
     where: scopeAll ? undefined : { membership: { userId: user.id } },
     include: { membership: { include: { user: { select: { firstName: true, lastName: true, email: true } } } } },
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || (actor.role !== "ADMIN" && actor.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const body = await request.json();
     const membershipId = String(body?.membershipId || "");
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       const transaction = await tx.shareTransaction.create({
         data: { membershipId, units, unitPrice, type, description: String(body.description || "Share adjustment"), reference: `SHR-${randomUUID()}`, actorId: actor.id },
       });
+      await tx.auditEntry.create({ data: { actorId: actor.id, action: "SHARE_ADJUSTMENT", entityType: "ShareHolding", entityId: updated.id, previousValue: String(holding?.units || 0), newValue: String(updated.units), reason: String(body.reason || body.description || "Share adjustment"), shareTransactionId: transaction.id } });
       return { holding: updated, transaction };
     });
     return NextResponse.json(result, { status: 201 });

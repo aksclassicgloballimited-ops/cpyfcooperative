@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { createUserLocal, findUserByEmailLocal, sanitizeUser } from "@/lib/store";
 import { registrationSchema } from "@/lib/validation";
+import { can } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -11,12 +12,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   }
 
-  if (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE") {
+  if (!can(sessionUser.role, "members")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
   if (process.env.DATABASE_URL) {
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim();
+    const status = searchParams.get("status");
+    const grade = searchParams.get("grade");
+    const category = searchParams.get("category");
     const members = await prisma.user.findMany({
+      where: {
+        ...(search ? { OR: [{ firstName: { contains: search, mode: "insensitive" } }, { lastName: { contains: search, mode: "insensitive" } }, { email: { contains: search, mode: "insensitive" } }, { phone: { contains: search } }, { membership: { membershipNo: { contains: search, mode: "insensitive" } } }] } : {}),
+        ...(status || grade || category ? { membership: { ...(status ? { status: status as never } : {}), ...(grade ? { grade: grade as never } : {}), ...(category ? { category: category as never } : {}) } } : {}),
+      },
       include: { membership: true },
       orderBy: { createdAt: "desc" },
     });
@@ -93,22 +103,23 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const sessionUser = await getUserFromRequest(request);
-  if (!sessionUser || (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE")) {
+  if (!sessionUser || !can(sessionUser.role, "members")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
   try {
-    const { userId, status } = await request.json();
-    if (!userId || !["ACTIVE", "REJECTED", "SUSPENDED"].includes(status)) {
+    const { userId, status, role, reason, ...profile } = await request.json();
+    if (!userId || (!status && !role && !Object.keys(profile).length)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
+    if (role && !["ADMIN", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    if (role && sessionUser.role !== "ADMIN" && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only administrators can change roles" }, { status: 403 });
+    if (status && !["ACTIVE", "REJECTED", "SUSPENDED", "PENDING"].includes(status)) return NextResponse.json({ error: "Invalid membership status" }, { status: 400 });
     const member = await prisma.$transaction(async (tx) => {
-      const updated = await tx.membership.update({
-        where: { userId },
-        data: { status, joinedAt: status === "ACTIVE" ? new Date() : undefined },
-        include: { user: { select: { firstName: true, lastName: true, email: true } } },
-      });
-      await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
+      const updated = await tx.membership.update({ where: { userId }, data: status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
+      if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string")) } });
+      if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, profile }), reason: reason || "Member record updated" } });
       return updated;
     });
     return NextResponse.json({ member }, { status: 200 });

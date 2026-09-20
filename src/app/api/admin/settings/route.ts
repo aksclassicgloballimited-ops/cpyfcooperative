@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { ensureCategoryConfigs } from "@/lib/membership";
+import { can } from "@/lib/permissions";
 
 async function requireAdmin(request: Request) {
   const user = await getUserFromRequest(request);
-  if (!user || (user.role !== "ADMIN" && user.role !== "EXECUTIVE")) return null;
+  if (!user || !can(user.role, "settings")) return null;
   return user;
 }
 

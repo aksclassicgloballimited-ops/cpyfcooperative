@@ -6,6 +6,7 @@ import { loanApplicationSchema } from "@/lib/validation";
 import { getCategoryConfig } from "@/lib/membership";
 import { ensureLoanProducts } from "@/lib/loan-products";
 import { randomUUID } from "crypto";
+import { can } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const includeAll = searchParams.get("scope") === "all";
 
   if (includeAll) {
-    if (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE") {
+    if (!can(sessionUser.role, "loans")) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
@@ -170,7 +171,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
     }
 
-    if (sessionUser.role !== "ADMIN" && sessionUser.role !== "EXECUTIVE") {
+    if (!can(sessionUser.role, "loans")) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
@@ -188,6 +189,7 @@ export async function PUT(request: Request) {
 
     if (process.env.DATABASE_URL) {
       const updated = await prisma.$transaction(async (tx) => {
+        const previous = await tx.loanApplication.findUnique({ where: { id }, select: { status: true, userId: true, applicationNo: true } });
         const loan = await tx.loanApplication.update({
           where: { id },
           data: {
@@ -196,6 +198,8 @@ export async function PUT(request: Request) {
             reviewedAt: new Date(),
           },
         });
+        await tx.loanStatusHistory.create({ data: { loanId: id, fromStatus: previous?.status, toStatus: normalizedStatus, changedBy: sessionUser.id, reason: body.reason ? String(body.reason) : null } });
+        await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "LOAN_STATUS_CHANGE", entityType: "LoanApplication", entityId: id, previousValue: previous?.status, newValue: normalizedStatus, reason: body.reason ? String(body.reason) : "Loan status updated", loanId: id } });
         const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
         await tx.notification.create({ data: { userId: loan.userId, title, body: `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
         return loan;

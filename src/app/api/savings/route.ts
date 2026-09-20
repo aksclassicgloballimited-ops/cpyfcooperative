@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 async function authorized(request: Request) {
   const user = await getUserFromRequest(request);
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const scopeAll = searchParams.get("scope") === "all";
-  if (scopeAll && user.role !== "ADMIN" && user.role !== "EXECUTIVE") return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (scopeAll && !can(user.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const userId = scopeAll ? undefined : user.id;
 
   const transactions = await prisma.transaction.findMany({
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || (actor.role !== "ADMIN" && actor.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const body = await request.json();
     const userId = String(body?.userId || "");
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
         actorId: actor.id,
       },
     });
+    await prisma.auditEntry.create({ data: { actorId: actor.id, action: "SAVINGS_POST", entityType: "Transaction", entityId: transaction.id, previousValue: String(current._sum.amount || 0), newValue: String(balanceAfter), reason: String(body.reason || body.description || "Savings posted"), transactionId: transaction.id } });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Savings entry failed" }, { status: 500 });
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || (actor.role !== "ADMIN" && actor.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const { id } = await request.json();
     const original = await prisma.transaction.findUnique({ where: { id } });

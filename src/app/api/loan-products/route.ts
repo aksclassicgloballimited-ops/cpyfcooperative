@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { ensureLoanProducts } from "@/lib/loan-products";
+import { can } from "@/lib/permissions";
 
 async function staff(request: Request) {
   const user = await getUserFromRequest(request);
-  return user && (user.role === "ADMIN" || user.role === "EXECUTIVE") ? user : null;
+  return user && can(user.role, "loans") ? user : null;
 }
 
 export async function GET() {

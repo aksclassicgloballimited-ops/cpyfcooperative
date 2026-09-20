@@ -12,6 +12,11 @@ enum Role {
   MEMBER
   EXECUTIVE
   ADMIN
+  SUPER_ADMIN
+  FINANCE_OFFICER
+  LOAN_OFFICER
+  MEMBERSHIP_OFFICER
+  AUDITOR
 }
 
 enum MembershipCategory {
@@ -96,6 +101,7 @@ model User {
   transactions Transaction[]
   loans        LoanApplication[]
   notifications Notification[]
+  auditEntries AuditEntry[] @relation("AuditActor")
   guarantorRequestsMade GuarantorRequest[] @relation("GuarantorRequester")
   guarantorRequestsReceived GuarantorRequest[] @relation("GuarantorMember")
 }
@@ -170,6 +176,7 @@ model Transaction {
   reversalOf  String?
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditEntries AuditEntry[]
 }
 
 model ShareTransaction {
@@ -183,6 +190,7 @@ model ShareTransaction {
   actorId      String?
   createdAt    DateTime    @default(now())
   membership   Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  auditEntries AuditEntry[]
 }
 
 model LoanApplication {
@@ -218,6 +226,38 @@ model LoanApplication {
   user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   loanProduct         LoanProduct? @relation(fields: [loanProductId], references: [id], onDelete: SetNull)
   guarantorRequest     GuarantorRequest?
+  statusHistory        LoanStatusHistory[]
+  auditEntries         AuditEntry[]
+}
+
+model LoanStatusHistory {
+  id        String @id @default(cuid())
+  loanId    String
+  fromStatus String?
+  toStatus  String
+  changedBy String
+  reason    String?
+  createdAt DateTime @default(now())
+  loan      LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
+}
+
+model AuditEntry {
+  id          String @id @default(cuid())
+  actorId     String
+  action      String
+  entityType  String
+  entityId    String
+  previousValue String?
+  newValue    String?
+  reason      String
+  createdAt   DateTime @default(now())
+  actor       User @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  transactionId String?
+  shareTransaction ShareTransaction? @relation(fields: [shareTransactionId], references: [id], onDelete: SetNull)
+  shareTransactionId String?
+  loan LoanApplication? @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  loanId String?
 }
 
 model GuarantorRequest {

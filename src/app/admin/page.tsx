@@ -30,6 +30,8 @@ type LoanQueueItem = {
   } | null;
 };
 
+type AdminStats = Record<string, number>;
+
 const quickActions = [
   { label: 'Review Applications', href: '#review-queue' },
   { label: 'Manage Members', href: '#review-queue' },
@@ -43,6 +45,7 @@ export default function AdminDashboardPage() {
   const [loanQueue, setLoanQueue] = useState<LoanQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [financialMessage, setFinancialMessage] = useState('');
+  const [stats, setStats] = useState<AdminStats>({});
 
   const loadAdminData = async () => {
     try {
@@ -50,6 +53,8 @@ export default function AdminDashboardPage() {
         fetch('/api/members', { cache: 'no-store' }),
         fetch('/api/loans?scope=all', { cache: 'no-store' }),
       ]);
+      const statsResponse = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+      if (statsResponse.ok) setStats((await statsResponse.json()).statistics ?? {});
 
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
@@ -77,7 +82,7 @@ export default function AdminDashboardPage() {
         }
 
         const data = await response.json();
-        if (!data.user || (data.user.role !== 'ADMIN' && data.user.role !== 'EXECUTIVE')) {
+        if (!data.user || data.user.role === 'MEMBER') {
           router.replace('/member');
           return;
         }
@@ -137,10 +142,17 @@ export default function AdminDashboardPage() {
   const queue = loanQueue;
 
   const summaryCards = [
-    { label: 'Total Members', value: String(members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
-    { label: 'Pending Applications', value: String(queue.filter((item) => item.status === 'PENDING').length || 0), tone: 'bg-amber-50 text-amber-600' },
-    { label: 'Active Loans', value: String(queue.filter((item) => item.status === 'APPROVED' || item.status === 'DISBURSED').length || 0), tone: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Monthly Savings', value: '₦7.8M', tone: 'bg-sky-50 text-sky-600' },
+  { label: 'Total Members', value: String(stats.totalMembers || members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
+  { label: 'Active Members', value: `${stats.activeMembers || 0} (${stats.activeAppearance || 0} app. / ${stats.activeNonAppearance || 0} non-app.)`, tone: 'bg-emerald-50 text-emerald-600' },
+  { label: 'Silver Members', value: String(stats.silverMembers || 0), tone: 'bg-slate-100 text-slate-700' },
+  { label: 'Golden Members', value: String(stats.goldenMembers || 0), tone: 'bg-amber-50 text-amber-600' },
+  { label: 'Pending Members', value: String(stats.pendingMembers || 0), tone: 'bg-orange-50 text-orange-600' },
+  { label: 'Total Savings', value: `₦${Number(stats.totalSavings || 0).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
+  { label: 'Total Shares', value: `${stats.totalShares || 0} units`, tone: 'bg-indigo-50 text-indigo-600' },
+  { label: 'Active Loans', value: String(stats.activeLoans || 0), tone: 'bg-emerald-50 text-emerald-600' },
+  { label: 'Outstanding Loans', value: `₦${Number(stats.outstandingLoans || 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600' },
+  { label: 'Completed Loans', value: String(stats.completedLoans || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
+  { label: 'Pending Loan Applications', value: String(stats.pendingLoanApplications || 0), tone: 'bg-amber-50 text-amber-600' },
   ];
 
   return (
@@ -155,6 +167,8 @@ export default function AdminDashboardPage() {
           <div className="flex flex-wrap gap-2">
             <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>
             <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>
+            <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>
+            <a href="/admin/reports" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Reports</a>
             <a href="/admin/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</a>
             <button type="button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Logout</button>
           </div>
