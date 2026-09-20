@@ -3,6 +3,8 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();

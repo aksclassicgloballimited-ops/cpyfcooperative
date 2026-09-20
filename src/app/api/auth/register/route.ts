@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
 import { registrationSchema } from "@/lib/validation";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const parsed = registrationSchema.safeParse(await request.json());
