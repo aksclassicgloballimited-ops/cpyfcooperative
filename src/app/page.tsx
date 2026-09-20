@@ -239,10 +239,6 @@ export default function HomePage() {
   return (
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-white text-[#1d1731] transition-colors duration-300 dark:bg-[#130c23] dark:text-white">
-        <div className="fixed bottom-4 right-4 z-50 rounded-full bg-black px-3 py-2 text-[10px] font-medium text-white">
-          Built with <span className="font-bold">AKSClassic</span>
-        </div>
-
         <header className="sticky left-0 top-0 z-40 w-full">
           <div className="section-shell py-4">
             <div className="rounded-full border border-white/10 bg-gradient-to-r from-[#4C1D95] via-[#6A11CB] to-[#4C1D95] shadow-[0_10px_30px_rgba(17,12,26,0.35)] backdrop-blur-md">
@@ -849,8 +845,12 @@ export default function HomePage() {
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#FACC15]">CONTACT US</h3>
                 <ul className="mt-5 space-y-3 text-sm text-violet-100">
                   <li>Nigeria</li>
-                  <li>+234 000 0000</li>
-                  <li>info@cpyif.org</li>
+                  <li>
+                    <a href="tel:+2349053604770" className="transition hover:text-white">09053604770</a>
+                  </li>
+                  <li>
+                    <a href="mailto:cpyfcooperativesociety@gmail.com" className="transition hover:text-white">cpyfcooperativesociety@gmail.com</a>
+                  </li>
                 </ul>
               </div>
             </div>
