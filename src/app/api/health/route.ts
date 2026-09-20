@@ -11,14 +11,19 @@ export async function GET() {
       service: "cpyif-platform",
       status: "ok",
       database: "connected",
+      databaseUrlConfigured: true,
+      directUrlConfigured: Boolean(process.env.DIRECT_URL),
       timestamp: new Date().toISOString(),
     });
-  } catch {
+  } catch (error) {
+    console.error("Production database health check failed", error);
     return NextResponse.json(
       {
         service: "cpyif-platform",
         status: "degraded",
         database: "unavailable",
+        databaseUrlConfigured: Boolean(process.env.DATABASE_URL),
+        directUrlConfigured: Boolean(process.env.DIRECT_URL),
         timestamp: new Date().toISOString(),
       },
       { status: 503 },
