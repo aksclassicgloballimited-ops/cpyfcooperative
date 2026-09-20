@@ -108,8 +108,8 @@ const membershipPlans = [
 ];
 
 const historyStats = [
-  { value: '2022', label: 'Founded' },
-  { value: '2023', label: 'CAC Registered' },
+  { value: '2023', label: 'Founded' },
+  { value: '2024', label: 'CAC Registered' },
   { value: '200+', label: 'Members' },
   { value: '100%', label: 'Interest-Free' },
 ];
@@ -593,7 +593,7 @@ export default function HomePage() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#FACC15]">OUR HISTORY</p>
                 <h2 className="mt-4 text-4xl font-bold sm:text-5xl">From 10 Members to a Thriving Community</h2>
                 <p className="mt-6 max-w-2xl text-base leading-7 text-violet-100">
-                  The cooperative began in early 2022 when ten dedicated members came together to address specific challenges encountered in their workplace by pooling resources and supporting one another. What started as an informal collaboration was built on trust, unity, and a shared commitment to improving the welfare of every member. Formally registered with the CAC in 2023, CPYIF has remained committed to promoting financial inclusion, interest-free lending, and the overall economic empowerment of its members.
+                  The cooperative began in early 2023 when ten dedicated members came together to address specific challenges encountered in their workplace by pooling resources and supporting one another. What started as an informal collaboration was built on trust, unity, and a shared commitment to improving the welfare of every member. Formally registered with the CAC in 2024, CPYIF has remained committed to promoting financial inclusion, interest-free lending, and the overall economic empowerment of its members.
                 </p>
                 <button type="button" className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-[#1d1731] transition hover:bg-violet-100">
                   Full History <span aria-hidden="true">→</span>
