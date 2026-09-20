@@ -154,13 +154,13 @@ const testimonials = [
 ];
 
 const footerLinks = ['Home', 'About Us', 'Our History', 'Membership', 'Services', 'News'];
-const memberPortalLinks = [
-  'Register',
-  'Member Login',
-  'Executive Login',
-  'Admin Login',
-  'Online Meeting',
-  'FAQs',
+const memberPortalLinks: { label: string; href?: string }[] = [
+  { label: 'Register', href: '#membership' },
+  { label: 'Member Login', href: '#portal' },
+  { label: 'Executive Login', href: '/executive-login' },
+  { label: 'Admin Login', href: '/admin-login' },
+  { label: 'Online Meeting', href: '#portal' },
+  { label: 'FAQs', href: '#faqs' },
 ];
 
 export default function HomePage() {
@@ -212,8 +212,14 @@ export default function HomePage() {
         throw new Error(data.error || 'Request failed');
       }
 
-      const name = data.user?.firstName ? `${data.user.firstName} ${data.user.lastName || ''}`.trim() : 'Member';
       const userRole = data.user?.role;
+      if (authMode === 'login' && userRole !== 'MEMBER') {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        const portal = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' ? 'the Admin Login page' : 'the Executive Login page';
+        throw new Error(`This login is for members only. Executives and staff should use ${portal}.`);
+      }
+
+      const name = data.user?.firstName ? `${data.user.firstName} ${data.user.lastName || ''}`.trim() : 'Member';
       setMemberName(name);
       setAuthStatus(`${authMode === 'login' ? 'Welcome back' : 'Registration successful'} — ${name}`);
       setAuthMode('login');
@@ -228,8 +234,7 @@ export default function HomePage() {
       });
 
       if (typeof window !== 'undefined') {
-        const destination = userRole === 'ADMIN' || userRole === 'EXECUTIVE' ? '/admin' : '/member';
-        window.location.href = destination;
+        window.location.href = '/member';
       }
     } catch (error) {
       setAuthStatus(error instanceof Error ? error.message : 'Unknown error');
@@ -834,15 +839,11 @@ export default function HomePage() {
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#FACC15]">MEMBER PORTAL</h3>
                 <ul className="mt-5 space-y-3 text-sm text-violet-100">
-                  {memberPortalLinks.map((link) => (
-                    <li key={link}>
-                      {link === 'Executive Login' ? (
-                        <a href="/executive-login" className="transition hover:text-white">
-                          {link}
-                        </a>
-                      ) : (
-                        link
-                      )}
+                  {memberPortalLinks.map((item) => (
+                    <li key={item.label}>
+                      <a href={item.href ?? '#'} className="transition hover:text-white">
+                        {item.label}
+                      </a>
                     </li>
                   ))}
                 </ul>

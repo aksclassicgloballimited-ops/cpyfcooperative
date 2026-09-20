@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-const ALLOWED_ROLES = ['EXECUTIVE', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'MEMBERSHIP_OFFICER', 'AUDITOR'];
+const ALLOWED_ROLES = ['ADMIN', 'SUPER_ADMIN'];
 
-export default function ExecutiveLoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +17,7 @@ export default function ExecutiveLoginPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
-    setStatus('Verifying executive access...');
+    setStatus('Verifying admin access...');
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -30,11 +30,11 @@ export default function ExecutiveLoginPage() {
 
       if (!ALLOWED_ROLES.includes(data.user?.role)) {
         await fetch('/api/auth/logout', { method: 'POST' });
-        const portal = data.user?.role === 'ADMIN' || data.user?.role === 'SUPER_ADMIN' ? 'the Admin Login page' : 'the Member Login page';
-        throw new Error(`This portal is reserved for executives and cooperative officers. Please use ${portal}.`);
+        const portal = data.user?.role === 'MEMBER' ? 'the Member Login page' : 'the Executive Login page';
+        throw new Error(`This portal is reserved for administrators. Please use ${portal}.`);
       }
 
-      setStatus('Access granted. Redirecting to the dashboard...');
+      setStatus('Access granted. Redirecting to the admin dashboard...');
       router.replace('/admin');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Login failed');
@@ -44,22 +44,22 @@ export default function ExecutiveLoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#4C1D95] via-[#6A11CB] to-[#1d1234] px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#1d1234] via-[#4C1D95] to-[#6A11CB] px-4 py-12">
       <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/95 p-8 shadow-2xl">
         <Link href="/" className="flex items-center gap-3 text-sm font-bold text-[#6A11CB]">
           <Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={44} height={44} className="rounded-full" />
           CPYIF Cooperative
         </Link>
 
-        <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#6A11CB]">Executive Portal</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#1d1731]">Executive Login</h1>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-[#6A11CB]">Admin Portal</p>
+        <h1 className="mt-2 text-3xl font-bold text-[#1d1731]">Admin Login</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Restricted access for the Executive, Finance Officer, Loan Officer, Membership Officer, and Auditor roles.
+          Restricted access. This login is reserved for Administrators and Super Administrators only.
         </p>
 
         <form onSubmit={submit} className="mt-6 grid gap-4">
           <label className="grid gap-2 text-sm font-semibold text-slate-700">
-            Executive Email
+            Admin Email
             <input
               type="email"
               required
@@ -89,14 +89,14 @@ export default function ExecutiveLoginPage() {
             disabled={submitting}
             className="rounded-full bg-[#6A11CB] px-5 py-3 font-bold text-white transition hover:bg-[#5b0fc4] disabled:opacity-60"
           >
-            {submitting ? 'Signing in...' : 'Sign In as Executive'}
+            {submitting ? 'Signing in...' : 'Sign In as Admin'}
           </button>
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          Not an executive?{' '}
-          <Link href="/#portal" className="font-semibold text-[#6A11CB]">
-            Go to Member Login
+          Not an administrator?{' '}
+          <Link href="/executive-login" className="font-semibold text-[#6A11CB]">
+            Go to Executive Login
           </Link>
         </p>
       </div>
