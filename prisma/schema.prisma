@@ -94,6 +94,8 @@ model User {
   identificationDocument String?
   termsAcceptedAt DateTime?
   role         Role      @default(MEMBER)
+  isActive     Boolean   @default(true)
+  createdBy    String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   membership   Membership?

@@ -24,6 +24,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    if (!user.isActive) {
+      return NextResponse.json({ error: "This account has been deactivated. Contact the Super Administrator." }, { status: 403 });
+    }
+
     const token = await createSessionLocal(user.id);
     const { passwordHash: _passwordHash, ...safeUser } = user;
     const response = NextResponse.json({ user: safeUser }, { status: 200 });

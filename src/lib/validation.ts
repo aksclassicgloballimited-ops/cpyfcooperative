@@ -28,6 +28,24 @@ export const registrationSchema = z.object({
   termsAccepted: z.literal("true"),
 });
 
+export const staffRoleSchema = z.enum([
+  "EXECUTIVE",
+  "ADMIN",
+  "FINANCE_OFFICER",
+  "LOAN_OFFICER",
+  "MEMBERSHIP_OFFICER",
+  "AUDITOR",
+]);
+
+export const staffAccountSchema = z.object({
+  firstName: z.string().trim().min(2),
+  lastName: z.string().trim().min(2),
+  email: z.string().trim().email(),
+  phone: z.string().trim().min(7),
+  password: z.string().min(8),
+  role: staffRoleSchema,
+});
+
 export const loanApplicationSchema = z.object({
   type: z.enum(["GENERAL", "PROPERTY", "COMMODITY", "BUSINESS", "EMERGENCY"]),
   amount: z.coerce.number().positive(),

@@ -48,6 +48,7 @@ export default function AdminDashboardPage() {
   const [financialMessage, setFinancialMessage] = useState('');
   const [stats, setStats] = useState<AdminStats>({});
   const [savingsPayments, setSavingsPayments] = useState<SavingsPayment[]>([]);
+  const [currentRole, setCurrentRole] = useState('');
 
   const loadAdminData = async () => {
     try {
@@ -91,6 +92,7 @@ export default function AdminDashboardPage() {
           return;
         }
 
+        setCurrentRole(data.user.role);
         await loadAdminData();
       } catch {
         router.replace('/#portal');
@@ -177,6 +179,7 @@ export default function AdminDashboardPage() {
             <h1 className="mt-2 text-3xl font-bold">CPYIF Executive Dashboard</h1>
           </div>
           <div className="flex flex-wrap gap-2">
+            {currentRole === 'SUPER_ADMIN' && <a href="/admin/staff" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Staff Accounts</a>}
             <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>
             <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>
             <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>
