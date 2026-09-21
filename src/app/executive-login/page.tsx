@@ -30,8 +30,7 @@ export default function ExecutiveLoginPage() {
 
       if (!ALLOWED_ROLES.includes(data.user?.role)) {
         await fetch('/api/auth/logout', { method: 'POST' });
-        const portal = data.user?.role === 'ADMIN' || data.user?.role === 'SUPER_ADMIN' ? 'the Admin Login page' : 'the Member Login page';
-        throw new Error(`This portal is reserved for executives and cooperative officers. Please use ${portal}.`);
+        throw new Error('Invalid login details.');
       }
 
       setStatus('Access granted. Redirecting to the dashboard...');

@@ -215,8 +215,7 @@ export default function HomePage() {
       const userRole = data.user?.role;
       if (authMode === 'login' && userRole !== 'MEMBER') {
         await fetch('/api/auth/logout', { method: 'POST' });
-        const portal = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' ? 'the Admin Login page' : 'the Executive Login page';
-        throw new Error(`This login is for members only. Executives and staff should use ${portal}.`);
+        throw new Error('Invalid login details.');
       }
 
       const name = data.user?.firstName ? `${data.user.firstName} ${data.user.lastName || ''}`.trim() : 'Member';
@@ -727,13 +726,12 @@ export default function HomePage() {
                     >
                       Login
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode('register')}
-                      className={['flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition', authMode === 'register' ? 'bg-[#6A11CB] text-white' : 'text-[#6A11CB]'].join(' ')}
+                    <a
+                      href="#membership"
+                      className="flex-1 rounded-full px-4 py-2.5 text-center text-sm font-bold text-[#6A11CB] transition"
                     >
                       Register
-                    </button>
+                    </a>
                   </div>
 
                   <form onSubmit={handleAuthSubmit} className="space-y-4">

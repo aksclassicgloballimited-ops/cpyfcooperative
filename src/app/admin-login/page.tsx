@@ -30,8 +30,7 @@ export default function AdminLoginPage() {
 
       if (!ALLOWED_ROLES.includes(data.user?.role)) {
         await fetch('/api/auth/logout', { method: 'POST' });
-        const portal = data.user?.role === 'MEMBER' ? 'the Member Login page' : 'the Executive Login page';
-        throw new Error(`This portal is reserved for administrators. Please use ${portal}.`);
+        throw new Error('Invalid login details.');
       }
 
       setStatus('Access granted. Redirecting to the admin dashboard...');
