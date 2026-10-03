@@ -6,7 +6,7 @@ import { loanApplicationSchema } from "@/lib/validation";
 import { getCategoryConfig } from "@/lib/membership";
 import { ensureLoanProducts } from "@/lib/loan-products";
 import { randomUUID } from "crypto";
-import { can } from "@/lib/permissions";
+import { can, canWrite } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -171,7 +171,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
     }
 
-    if (!can(sessionUser.role, "loans")) {
+    if (!canWrite(sessionUser.role, "loans")) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 

@@ -107,6 +107,7 @@ model User {
   savingsPayments SavingsPaymentSubmission[]
   guarantorRequestsMade GuarantorRequest[] @relation("GuarantorRequester")
   guarantorRequestsReceived GuarantorRequest[] @relation("GuarantorMember")
+  developmentLevies DevelopmentLevy[]
 }
 
 model Session {
@@ -196,6 +197,22 @@ model SavingsPaymentSubmission {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model DevelopmentLevy {
+  id                  String   @id @default(cuid())
+  userId              String
+  membershipNo        String
+  category            MembershipCategory
+  amount              Float
+  weekStart           DateTime
+  sourceSavingsAmount Float
+  transactionId       String?
+  savingsPaymentId    String?
+  createdAt           DateTime @default(now())
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
 model ShareTransaction {
   id           String      @id @default(cuid())
   membershipId String
@@ -224,6 +241,7 @@ model LoanApplication {
   totalRepayment      Float?
   estimatedInstallment Float?
   status              LoanStatus   @default(SUBMITTED)
+  amountRepaid        Float        @default(0)
   guarantorName       String?
   guarantorPhone      String?
   guarantorAddress    String?

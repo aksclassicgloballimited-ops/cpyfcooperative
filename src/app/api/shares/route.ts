@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, canWrite } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !canWrite(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const body = await request.json();
     const membershipId = String(body?.membershipId || "");
@@ -34,6 +34,9 @@ export async function POST(request: Request) {
     }
     const result = await prisma.$transaction(async (tx) => {
       const holding = await tx.shareHolding.findFirst({ where: { membershipId } });
+      if (units < 0 && actor.role !== "SUPER_ADMIN") throw new Error("Only a Super Administrator can reduce a member's shares");
+      if (holding && holding.units + units < 0) throw new Error("A member cannot hold fewer than zero shares");
+      if (!holding && units < 0) throw new Error("A member cannot hold fewer than zero shares");
       const updated = holding
         ? await tx.shareHolding.update({ where: { id: holding.id }, data: { units: holding.units + units, unitPrice } })
         : await tx.shareHolding.create({ data: { membershipId, units, unitPrice } });

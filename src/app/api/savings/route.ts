@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, canWrite } from "@/lib/permissions";
 
 async function authorized(request: Request) {
   const user = await getUserFromRequest(request);
@@ -34,12 +34,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !canWrite(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const body = await request.json();
     const userId = String(body?.userId || "");
     const amount = Number(body?.amount);
-    if (!userId || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "Member and a positive amount are required" }, { status: 400 });
+    const isReduction = amount < 0;
+    if (isReduction && actor.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can reduce a member's savings" }, { status: 403 });
+    if (!userId || !Number.isFinite(amount) || amount === 0) return NextResponse.json({ error: "Member and a non-zero amount are required" }, { status: 400 });
     const current = await prisma.transaction.aggregate({
       _sum: { amount: true },
       where: { userId, type: "SAVINGS", status: "POSTED", reversedAt: null },
@@ -51,12 +53,12 @@ export async function POST(request: Request) {
         type: "SAVINGS",
         amount,
         reference: `SAV-${randomUUID()}`,
-        description: String(body.description || "Savings contribution"),
+        description: String(body.description || (isReduction ? "Savings reduction" : "Savings contribution")),
         balanceAfter,
         actorId: actor.id,
       },
     });
-    await prisma.auditEntry.create({ data: { actorId: actor.id, action: "SAVINGS_POST", entityType: "Transaction", entityId: transaction.id, previousValue: String(current._sum.amount || 0), newValue: String(balanceAfter), reason: String(body.reason || body.description || "Savings posted"), transactionId: transaction.id } });
+    await prisma.auditEntry.create({ data: { actorId: actor.id, action: isReduction ? "SAVINGS_REDUCE" : "SAVINGS_POST", entityType: "Transaction", entityId: transaction.id, previousValue: String(current._sum.amount || 0), newValue: String(balanceAfter), reason: String(body.reason || body.description || "Savings posted"), transactionId: transaction.id } });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Savings entry failed" }, { status: 500 });
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const actor = await getUserFromRequest(request);
-  if (!actor || !can(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!actor || !canWrite(actor.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   try {
     const { id } = await request.json();
     const original = await prisma.transaction.findUnique({ where: { id } });

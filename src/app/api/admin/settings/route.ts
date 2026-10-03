@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { ensureCategoryConfigs } from "@/lib/membership";
-import { can } from "@/lib/permissions";
+import { can, canWrite } from "@/lib/permissions";
 
 async function requireAdmin(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user || !can(user.role, "settings")) return null;
+  return user;
+}
+
+async function requireAdminWrite(request: Request) {
+  const user = await getUserFromRequest(request);
+  if (!user || !canWrite(user.role, "settings")) return null;
   return user;
 }
 
@@ -18,7 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const user = await requireAdmin(request);
+  const user = await requireAdminWrite(request);
   if (!user) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
   try {

@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { can, canWrite } from '@/lib/permissions';
 
 type MemberRecord = {
   id: string;
@@ -33,10 +34,10 @@ type LoanQueueItem = {
 type AdminStats = Record<string, number>;
 type SavingsPayment = { id: string; amount: number; transactionNo?: string | null; receipt?: string | null; status: string; createdAt: string; user?: { firstName: string; lastName: string; email: string; membership?: { membershipNo: string } } };
 
-const quickActions = [
-  { label: 'Review Applications', href: '#review-queue' },
-  { label: 'Manage Members', href: '#review-queue' },
-  { label: 'Loan Requests', href: '#review-queue' },
+const quickActions: { label: string; href: string; permission?: 'members' | 'loans' }[] = [
+  { label: 'Review Applications', href: '#review-queue', permission: 'loans' },
+  { label: 'Manage Members', href: '/admin/members', permission: 'members' },
+  { label: 'Loan Requests', href: '#review-queue', permission: 'loans' },
   { label: 'Reports', href: '/admin/reports' },
 ];
 
@@ -47,6 +48,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [financialMessage, setFinancialMessage] = useState('');
   const [stats, setStats] = useState<AdminStats>({});
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [savingsPayments, setSavingsPayments] = useState<SavingsPayment[]>([]);
   const [currentRole, setCurrentRole] = useState('');
 
@@ -58,6 +60,7 @@ export default function AdminDashboardPage() {
       ]);
       const statsResponse = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       if (statsResponse.ok) setStats((await statsResponse.json()).statistics ?? {});
+      setStatsLoaded(true);
       const paymentsResponse = await fetch('/api/savings/payments?scope=all', { cache: 'no-store' });
       if (paymentsResponse.ok) setSavingsPayments((await paymentsResponse.json()).payments ?? []);
 
@@ -72,6 +75,7 @@ export default function AdminDashboardPage() {
       }
     } catch {
       // keep fallback data if backend is unavailable
+      setStatsLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -145,6 +149,24 @@ export default function AdminDashboardPage() {
     if (response.ok) event.currentTarget.reset();
   };
 
+  const adjustLoan = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch('/api/admin/loan-adjustments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loanId: form.get('loanId'), amount: Number(form.get('amount')), reason: form.get('reason') }) });
+    const data = await response.json();
+    setFinancialMessage(response.ok ? 'Loan balance updated and recorded.' : data.error || 'Unable to adjust loan balance.');
+    if (response.ok) { event.currentTarget.reset(); await loadAdminData(); }
+  };
+
+  const adjustDividend = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch('/api/admin/dividends', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: form.get('userId'), amount: Number(form.get('amount')), reason: form.get('reason') }) });
+    const data = await response.json();
+    setFinancialMessage(response.ok ? 'Dividend adjustment posted.' : data.error || 'Unable to post dividend.');
+    if (response.ok) event.currentTarget.reset();
+  };
+
   const reviewSavingsPayment = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     const reason = status === 'REJECTED' ? window.prompt('Reason for rejecting this payment') || 'Payment could not be verified' : 'Receipt/transaction verified by finance';
     const response = await fetch('/api/savings/payments', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status, reason }) });
@@ -156,18 +178,24 @@ export default function AdminDashboardPage() {
   const queue = loanQueue;
 
   const summaryCards = [
-  { label: 'Total Members', value: String(stats.totalMembers || members.length || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
+  { label: 'Total Members', value: String(stats.totalMembers ?? 0), tone: 'bg-violet-50 text-[#6A11CB]' },
   { label: 'Active Members', value: `${stats.activeMembers || 0} (${stats.activeAppearance || 0} app. / ${stats.activeNonAppearance || 0} non-app.)`, tone: 'bg-emerald-50 text-emerald-600' },
   { label: 'Silver Members', value: `${stats.silverMembers || 0} (${stats.silverAppearance || 0} app. / ${stats.silverNonAppearance || 0} non-app.)`, tone: 'bg-slate-100 text-slate-700' },
   { label: 'Golden Members', value: `${stats.goldenMembers || 0} (${stats.goldenAppearance || 0} app. / ${stats.goldenNonAppearance || 0} non-app.)`, tone: 'bg-amber-50 text-amber-600' },
-  { label: 'Pending Members', value: String(stats.pendingMembers || 0), tone: 'bg-orange-50 text-orange-600' },
   { label: 'Total Savings', value: `₦${Number(stats.totalSavings || 0).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
   { label: 'Total Shares', value: `${stats.totalShares || 0} units`, tone: 'bg-indigo-50 text-indigo-600' },
-  { label: 'Active Loans', value: String(stats.activeLoans || 0), tone: 'bg-emerald-50 text-emerald-600' },
   { label: 'Outstanding Loans', value: `₦${Number(stats.outstandingLoans || 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600' },
-  { label: 'Completed Loans', value: String(stats.completedLoans || 0), tone: 'bg-violet-50 text-[#6A11CB]' },
-  { label: 'Pending Loan Applications', value: String(stats.pendingLoanApplications || 0), tone: 'bg-amber-50 text-amber-600' },
   ];
+
+  const canViewMembers = can(currentRole, 'members');
+  const canManageMembers = canWrite(currentRole, 'members');
+  const canViewFinance = can(currentRole, 'finance');
+  const canManageFinance = canWrite(currentRole, 'finance');
+  const canViewLoans = can(currentRole, 'loans');
+  const canManageLoans = canWrite(currentRole, 'loans');
+  const canViewSettings = can(currentRole, 'settings');
+  const canViewDevelopmentLevy = can(currentRole, 'developmentLevy');
+  const isSuperAdmin = currentRole === 'SUPER_ADMIN';
 
   return (
     <main className="min-h-screen bg-[#f8f5ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
@@ -179,12 +207,13 @@ export default function AdminDashboardPage() {
             <h1 className="mt-2 text-3xl font-bold">CPYIF Executive Dashboard</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {currentRole === 'SUPER_ADMIN' && <a href="/admin/staff" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Staff Accounts</a>}
-            <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>
-            <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>
-            <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>
+            {isSuperAdmin && <a href="/admin/staff" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Staff Accounts</a>}
+            {canViewDevelopmentLevy && <a href="/admin/development-levy" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Development Levy</a>}
+            {canViewSettings && <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>}
+            {canViewLoans && <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>}
+            {canViewMembers && <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>}
             <a href="/admin/reports" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Reports</a>
-            <a href="/admin/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</a>
+            {canViewMembers && <a href="/admin/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</a>}
             <button type="button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Logout</button>
           </div>
         </div>
@@ -193,12 +222,12 @@ export default function AdminDashboardPage() {
           {summaryCards.map((item) => (
             <div key={item.label} className="rounded-[1.5rem] border border-violet-200 bg-white p-5 shadow-sm">
               <div className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.tone}`}>{item.label}</div>
-              <div className="mt-4 text-3xl font-bold text-[#1d1731]">{item.value}</div>
+              <div className="mt-4 text-3xl font-bold text-[#1d1731]">{statsLoaded ? item.value : <span className="inline-block h-8 w-20 animate-pulse rounded bg-violet-100 align-middle" />}</div>
             </div>
           ))}
         </div>
 
-        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+        {canViewMembers && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-[#1d1731]">Membership Applications</h2>
             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{members.filter((member) => member.membership?.status === 'PENDING').length} pending</span>
@@ -213,20 +242,20 @@ export default function AdminDashboardPage() {
                     <td className="px-4 py-3 font-semibold">{member.membership?.membershipNo || '—'}</td>
                     <td className="px-4 py-3">{member.membership?.paymentSubmittedAt ? 'Submitted' : 'Not submitted'}</td>
                     <td className="px-4 py-3"><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold">{member.membership?.status || 'PENDING'}</span></td>
-                    <td className="px-4 py-3">{member.membership?.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => handleMemberStatus(member.id, 'ACTIVE')} className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => handleMemberStatus(member.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td>
+                    <td className="px-4 py-3">{canManageMembers && member.membership?.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => handleMemberStatus(member.id, 'ACTIVE')} className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => handleMemberStatus(member.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </section>
+        </section>}
 
-        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+        {canViewFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between"><div><h2 className="text-2xl font-bold">Savings Payment Approvals</h2><p className="mt-1 text-sm text-slate-600">Approved payments are the only payments added to member savings.</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{savingsPayments.filter((payment) => payment.status === 'PENDING').length} pending</span></div>
-          <div className="overflow-x-auto rounded-xl border border-violet-100"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead><tbody>{savingsPayments.map((payment) => <tr key={payment.id} className="border-t border-violet-100"><td className="px-4 py-3"><b>{payment.user?.firstName} {payment.user?.lastName}</b><span className="block text-xs text-slate-500">{payment.user?.membership?.membershipNo}</span></td><td className="px-4 py-3 font-bold">₦{payment.amount.toLocaleString()}</td><td className="px-4 py-3">{payment.transactionNo || 'Not provided'}</td><td className="px-4 py-3">{payment.receipt ? <a href={payment.receipt} download={`receipt-${payment.id}`} className="font-bold text-[#6A11CB]">View receipt</a> : '—'}</td><td className="px-4 py-3">{payment.status}</td><td className="px-4 py-3">{payment.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'APPROVED')} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td></tr>)}</tbody></table>{!savingsPayments.length && <p className="p-8 text-center text-sm text-slate-500">No savings payments have been submitted.</p>}</div>
-        </section>
+          <div className="overflow-x-auto rounded-xl border border-violet-100"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead><tbody>{savingsPayments.map((payment) => <tr key={payment.id} className="border-t border-violet-100"><td className="px-4 py-3"><b>{payment.user?.firstName} {payment.user?.lastName}</b><span className="block text-xs text-slate-500">{payment.user?.membership?.membershipNo}</span></td><td className="px-4 py-3 font-bold">₦{payment.amount.toLocaleString()}</td><td className="px-4 py-3">{payment.transactionNo || 'Not provided'}</td><td className="px-4 py-3">{payment.receipt ? <a href={payment.receipt} download={`receipt-${payment.id}`} className="font-bold text-[#6A11CB]">View receipt</a> : '—'}</td><td className="px-4 py-3">{payment.status}</td><td className="px-4 py-3">{canManageFinance && payment.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'APPROVED')} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td></tr>)}</tbody></table>{!savingsPayments.length && <p className="p-8 text-center text-sm text-slate-500">No savings payments have been submitted.</p>}</div>
+        </section>}
 
-        <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+        {canManageFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-2xl font-bold">Financial Controls</h2>
@@ -237,10 +266,10 @@ export default function AdminDashboardPage() {
           {financialMessage && <p className="mt-4 rounded-xl bg-violet-50 px-4 py-3 text-sm font-semibold text-[#4C1D95]">{financialMessage}</p>}
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
             <form onSubmit={addSavings} className="rounded-2xl bg-violet-50 p-5">
-              <h3 className="font-bold">Add Savings</h3>
+              <h3 className="font-bold">Add Savings{isSuperAdmin ? ' / Reduce' : ''}</h3>
               <div className="mt-4 grid gap-3">
                 <select name="userId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}</select>
-                <input name="amount" required type="number" min="1" placeholder="Amount (₦)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="amount" required type="number" {...(isSuperAdmin ? {} : { min: '1' })} placeholder={isSuperAdmin ? 'Amount (₦, use negative to reduce)' : 'Amount (₦)'} className="rounded-xl border border-violet-200 px-3 py-2" />
                 <input name="description" required placeholder="Description" className="rounded-xl border border-violet-200 px-3 py-2" />
                 <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Post Savings</button>
               </div>
@@ -255,11 +284,29 @@ export default function AdminDashboardPage() {
                 <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Update Shares</button>
               </div>
             </form>
+            {isSuperAdmin && <form onSubmit={adjustLoan} className="rounded-2xl bg-violet-50 p-5">
+              <h3 className="font-bold">Record or Correct Loan Repayment</h3>
+              <div className="mt-4 grid gap-3">
+                <select name="loanId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select loan</option>{loanQueue.map((loan) => <option key={loan.id} value={loan.id}>{loan.user?.firstName} {loan.user?.lastName} — {loan.type} (₦{Number(loan.amount).toLocaleString()})</option>)}</select>
+                <input name="amount" required type="number" placeholder="Amount (₦, use negative to correct)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="reason" required placeholder="Reason" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Post Repayment</button>
+              </div>
+            </form>}
+            {isSuperAdmin && <form onSubmit={adjustDividend} className="rounded-2xl bg-violet-50 p-5">
+              <h3 className="font-bold">Add or Reduce Dividend</h3>
+              <div className="mt-4 grid gap-3">
+                <select name="userId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}</select>
+                <input name="amount" required type="number" placeholder="Amount (₦, use negative to reduce)" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="reason" required placeholder="Reason" className="rounded-xl border border-violet-200 px-3 py-2" />
+                <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Post Dividend</button>
+              </div>
+            </form>}
           </div>
-        </section>
+        </section>}
 
         <div className="mt-8 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-          <section id="review-queue" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+          {canViewLoans && <section id="review-queue" className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#1d1731]">Application Review Queue</h2>
               <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">{loading ? 'Loading...' : 'Live'}</span>
@@ -301,7 +348,7 @@ export default function AdminDashboardPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
+                          {canManageLoans && <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleReview(item.id, 'APPROVED')}
@@ -316,7 +363,7 @@ export default function AdminDashboardPage() {
                             >
                               Reject
                             </button>
-                          </div>
+                          </div>}
                         </td>
                       </tr>
                     );
@@ -324,12 +371,12 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
-          </section>
+          </section>}
 
           <aside className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold text-[#1d1731]">Quick Actions</h2>
             <div className="mt-5 space-y-3">
-              {quickActions.map((action) => (
+              {quickActions.filter((action) => !action.permission || can(currentRole, action.permission)).map((action) => (
                 <a key={action.label} href={action.href} className="flex w-full items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-left text-sm font-semibold text-[#4C1D95] transition hover:bg-violet-100">
                   {action.label}
                   <span>→</span>
@@ -339,6 +386,7 @@ export default function AdminDashboardPage() {
           </aside>
         </div>
 
+        {/* Performance Report is hidden until it is backed by real data.
         <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-[#1d1731]">Performance Report</h2>
@@ -359,6 +407,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         </section>
+        */}
       </div>
     </main>
   );

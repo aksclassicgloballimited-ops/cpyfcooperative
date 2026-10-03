@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { createUserLocal, findUserByEmailLocal, sanitizeUser } from "@/lib/store";
 import { registrationSchema } from "@/lib/validation";
-import { can } from "@/lib/permissions";
+import { can, canWrite } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const sessionUser = await getUserFromRequest(request);
-  if (!sessionUser || !can(sessionUser.role, "members")) {
+  if (!sessionUser || !canWrite(sessionUser.role, "members")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
@@ -113,7 +113,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
     if (role && !["ADMIN", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    if (role && sessionUser.role !== "ADMIN" && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only administrators can change roles" }, { status: 403 });
+    if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
     if (status && !["ACTIVE", "REJECTED", "SUSPENDED", "PENDING"].includes(status)) return NextResponse.json({ error: "Invalid membership status" }, { status: 400 });
     const member = await prisma.$transaction(async (tx) => {
       const updated = await tx.membership.update({ where: { userId }, data: status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}, include: { user: { select: { firstName: true, lastName: true, email: true } } } });

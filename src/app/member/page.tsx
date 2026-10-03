@@ -146,7 +146,6 @@ export default function MemberDashboardPage() {
     status: loan.status || 'PENDING',
   })) : [
     { type: 'Savings', amount: '+₦25,000', date: 'Today', status: 'Completed' },
-    { type: 'Development Levy', amount: '-₦1,000', date: 'Mon 09 Sep', status: 'Processed' },
     { type: 'Share Purchase', amount: '+₦10,000', date: 'Sun 08 Sep', status: 'Completed' },
     { type: 'Loan Disbursement', amount: '+₦250,000', date: 'Fri 06 Sep', status: 'Paid' },
   ];
