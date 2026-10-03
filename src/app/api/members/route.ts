@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
@@ -114,10 +114,11 @@ export async function PUT(request: Request) {
     }
     if (role && !["ADMIN", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
+    if (Object.keys(profile).length && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can correct member profile details" }, { status: 403 });
     if (status && !["ACTIVE", "REJECTED", "SUSPENDED", "PENDING"].includes(status)) return NextResponse.json({ error: "Invalid membership status" }, { status: 400 });
     const member = await prisma.$transaction(async (tx) => {
       const updated = await tx.membership.update({ where: { userId }, data: status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
-      if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string")) } });
+      if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "email", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string").map(([key, value]) => [key, key === "email" ? String(value).trim().toLowerCase() : String(value).trim()])) } });
       if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
       await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, profile }), reason: reason || "Member record updated" } });
       return updated;

@@ -108,6 +108,7 @@ model User {
   guarantorRequestsMade GuarantorRequest[] @relation("GuarantorRequester")
   guarantorRequestsReceived GuarantorRequest[] @relation("GuarantorMember")
   developmentLevies DevelopmentLevy[]
+  passwordResets PasswordReset[]
 }
 
 model Session {
@@ -349,6 +350,16 @@ model Notification {
   title     String
   body      String
   readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

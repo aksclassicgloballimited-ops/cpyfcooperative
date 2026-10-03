@@ -41,6 +41,7 @@ export default function StaffAccountsPage() {
   const [checking, setChecking] = useState(true);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState<StaffMember | null>(null);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: 'EXECUTIVE', password: generatePassword() });
 
   const loadStaff = async () => {
@@ -123,6 +124,20 @@ export default function StaffAccountsPage() {
     });
     const data = await response.json();
     setMessage(response.ok ? `Password reset for ${member.firstName} ${member.lastName}. New password: ${newPassword}` : data.error || 'Unable to reset password');
+  };
+
+  const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editing) return;
+    const f = new FormData(event.currentTarget);
+    const response = await fetch('/api/admin/staff', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editing.id, firstName: f.get('firstName'), lastName: f.get('lastName'), email: f.get('email'), phone: f.get('phone') }),
+    });
+    const data = await response.json();
+    setMessage(response.ok ? 'Staff details updated.' : data.error || 'Unable to update details');
+    if (response.ok) { setEditing(null); await loadStaff(); }
   };
 
   if (checking) {
@@ -210,8 +225,11 @@ export default function StaffAccountsPage() {
                         <button type="button" onClick={() => toggleActive(member)} className={`rounded-full px-3 py-1 text-xs font-bold ${member.isActive ? 'border border-rose-200 text-rose-600' : 'bg-emerald-600 text-white'}`}>
                           {member.isActive ? 'Suspend' : 'Reactivate'}
                         </button>
+                        <button type="button" onClick={() => setEditing(member)} className="rounded-full border border-violet-200 px-3 py-1 text-xs font-bold text-[#4C1D95]">
+                          Edit Details
+                        </button>
                         <button type="button" onClick={() => resetPassword(member)} className="rounded-full border border-violet-200 px-3 py-1 text-xs font-bold text-[#6A11CB]">
-                          Reset Password
+                          Reallocate Password
                         </button>
                       </div>
                     </td>
@@ -222,6 +240,21 @@ export default function StaffAccountsPage() {
             {!staff.length && <p className="p-8 text-center text-sm text-slate-500">No staff accounts have been created yet.</p>}
           </div>
         </section>
+        {editing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <form onSubmit={saveEdit} className="grid w-full max-w-md gap-3 rounded-[2rem] bg-white p-6">
+              <h2 className="text-xl font-bold">Edit Staff Details</h2>
+              <input name="firstName" required defaultValue={editing.firstName} placeholder="First name" className="rounded-xl border border-violet-200 px-3 py-2" />
+              <input name="lastName" required defaultValue={editing.lastName} placeholder="Last name" className="rounded-xl border border-violet-200 px-3 py-2" />
+              <input name="email" type="email" required defaultValue={editing.email} placeholder="Email" className="rounded-xl border border-violet-200 px-3 py-2" />
+              <input name="phone" required defaultValue={editing.phone} placeholder="Phone" className="rounded-xl border border-violet-200 px-3 py-2" />
+              <div className="flex gap-2">
+                <button className="flex-1 rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Save</button>
+                <button type="button" onClick={() => setEditing(null)} className="flex-1 rounded-full border border-violet-200 px-4 py-2 font-bold">Cancel</button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </main>
   );

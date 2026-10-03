@@ -104,8 +104,22 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "You cannot manage your own account from this screen" }, { status: 400 });
     }
 
-    const data: { role?: StaffRole; isActive?: boolean; passwordHash?: string } = {};
+    const data: { role?: StaffRole; isActive?: boolean; passwordHash?: string; firstName?: string; lastName?: string; email?: string; phone?: string } = {};
     const changes: string[] = [];
+
+    for (const field of ["firstName", "lastName", "email", "phone"] as const) {
+      const value = body[field];
+      if (typeof value === "string" && value.trim() && value.trim() !== target[field]) {
+        const next = field === "email" ? value.trim().toLowerCase() : value.trim();
+        if (field === "email") {
+          if (!/^\S+@\S+\.\S+$/.test(next)) return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+          const taken = await prisma.user.findUnique({ where: { email: next } });
+          if (taken && taken.id !== target.id) return NextResponse.json({ error: "Another account already uses this email" }, { status: 409 });
+        }
+        data[field] = next;
+        changes.push(`${field}: ${target[field]} -> ${next}`);
+      }
+    }
 
     if (typeof body.role === "string" && body.role !== target.role) {
       if (!STAFF_ROLE_SET.includes(body.role)) {

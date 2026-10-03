@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, type FormEvent } from 'react';
 
@@ -7,6 +7,7 @@ type MenuItem = {
   href: string;
   outline?: boolean;
   filled?: boolean;
+  action?: 'forum';
 };
 
 const mainNavItems: MenuItem[] = [
@@ -21,6 +22,7 @@ const moreNavItems: MenuItem[] = [
   { label: 'Our History', href: '#history' },
   { label: 'Online Meeting', href: '#portal' },
   { label: 'FAQs', href: '#faqs' },
+  { label: 'Bashiri Forum', href: '#', action: 'forum' },
   { label: 'Contact Us', href: '#contact' },
 ];
 
@@ -128,7 +130,7 @@ const testimonials = [
       'The weekly savings discipline has helped me build a savings culture I never had before. I\'m proud to be a member.',
   },
   {
-    name: 'Mariam Olatin',
+    name: 'Mariam Olaitan',
     grade: 'Active Member',
     quote:
       'Joining CPYIF was the best financial decision I ever made. The support from executives and members is unmatched.',
@@ -140,13 +142,13 @@ const testimonials = [
       'I was able to purchase a motorcycle for my business thanks to the property loan scheme. The process was smooth and transparent.',
   },
   {
-    name: 'Iyabo Ambal',
+    name: 'Iyabo Ambali',
     grade: 'Active Member',
     quote:
       'The online portal makes everything so easy - I can track my savings, apply for loans, and attend meetings from anywhere.',
   },
   {
-    name: 'Olanrewaju Qafar',
+    name: 'Olanrewaju Gaffar',
     grade: 'Golden Member',
     quote:
       'CPYIF has built something truly special. The trust, the transparency, and the genuine care for members\' growth sets it apart from anywhere else.',
@@ -158,13 +160,14 @@ const memberPortalLinks: { label: string; href?: string }[] = [
   { label: 'Register', href: '#membership' },
   { label: 'Member Login', href: '#portal' },
   { label: 'Executive Login', href: '/executive-login' },
-  { label: 'Admin Login', href: '/admin-login' },
   { label: 'Online Meeting', href: '#portal' },
   { label: 'FAQs', href: '#faqs' },
 ];
 
 export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [forumOpen, setForumOpen] = useState(false);
+  const [adBannerOpen, setAdBannerOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authStatus, setAuthStatus] = useState('');
@@ -243,6 +246,24 @@ export default function HomePage() {
   return (
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-white text-[#1d1731] transition-colors duration-300 dark:bg-[#130c23] dark:text-white">
+        {adBannerOpen && (
+          <div className="relative z-50 bg-[#FACC15] px-10 py-2 text-center text-xs font-semibold text-[#1d1731] sm:text-sm">
+            📢 Want to place an advert on the cooperative site? Contact the Admin or any Executive —{' '}
+            <a href="tel:+2349053604770" className="underline">09053604770</a> ·{' '}
+            <a href="mailto:cpyfcooperativesociety@gmail.com" className="underline">cpyfcooperativesociety@gmail.com</a>
+            <button type="button" aria-label="Dismiss advert notice" onClick={() => setAdBannerOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold">×</button>
+          </div>
+        )}
+        {forumOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" onClick={() => setForumOpen(false)}>
+            <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center text-[#1d1731] shadow-2xl dark:bg-[#1d1630] dark:text-white" onClick={(event) => event.stopPropagation()}>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#6A11CB]">Bashiri Forum</p>
+              <h3 className="mt-3 text-2xl font-bold">Features in progress......</h3>
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">We are working on something great. Please check back soon.</p>
+              <button type="button" onClick={() => setForumOpen(false)} className="mt-6 rounded-full bg-[#6A11CB] px-6 py-2.5 font-bold text-white">Close</button>
+            </div>
+          </div>
+        )}
         <header className="sticky left-0 top-0 z-40 w-full">
           <div className="section-shell py-4">
             <div className="rounded-full border border-white/10 bg-gradient-to-r from-[#4C1D95] via-[#6A11CB] to-[#4C1D95] shadow-[0_10px_30px_rgba(17,12,26,0.35)] backdrop-blur-md">
@@ -279,6 +300,7 @@ export default function HomePage() {
                         <a
                           key={item.label}
                           href={item.href}
+                          onClick={(event) => { if (item.action === 'forum') { event.preventDefault(); setForumOpen(true); } }}
                           className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-violet-50 hover:text-[#6A11CB]"
                         >
                           {item.label}
@@ -353,7 +375,7 @@ export default function HomePage() {
                   <a
                     key={item.label}
                     href={item.href}
-                    onClick={() => setMenuOpen(false)}
+                    onClick={(event) => { if (item.action === 'forum') { event.preventDefault(); setForumOpen(true); } setMenuOpen(false); }}
                     style={{ transitionDelay: menuOpen ? `${(mainNavItems.length + index) * 40}ms` : '0ms' }}
                     className={`rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 ease-out hover:bg-violet-50 ${menuOpen ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'}`}
                   >
@@ -461,7 +483,7 @@ export default function HomePage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                {[{image:'/cpyf-product1.jpeg', label:'CPYIF'}, {image:'/cpyf-product2.jpeg', label:'SHIRIN'}, {image:'/cpyf-oil.jpeg', label:'CPYIF'}].map((product) => (
+                {[{image:'/cpyf-product1.jpeg', label:'CPYIF'}, {image:'/cpyf-product2.jpeg', label:'BASHIRI'}, {image:'/cpyf-oil.jpeg', label:'CPYIF'}].map((product) => (
                   <div key={product.label + product.image} className="overflow-hidden rounded-[1.5rem] border border-violet-200 bg-white shadow-[0_18px_60px_rgba(76,29,149,0.12)] dark:border-white/10 dark:bg-[#1d1630]">
                     <img src={product.image} alt={product.label} className="h-72 w-full object-cover" />
                     <div className="bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-3 text-center text-sm font-bold uppercase tracking-[0.2em] text-white">
@@ -786,6 +808,7 @@ export default function HomePage() {
                     <button type="submit" className="w-full rounded-full bg-[#6A11CB] px-5 py-3.5 font-bold text-white transition hover:bg-[#5b0fc4]">
                       {authMode === 'login' ? 'Member Login' : 'Create Account'}
                     </button>
+                    <p className="text-center text-sm"><a href="/forgot-password" className="font-semibold text-[#6A11CB] hover:underline">Forgot password? Reset it</a></p>
                   </form>
                 </div>
               </div>
