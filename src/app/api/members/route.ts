@@ -29,6 +29,7 @@ export async function GET(request: Request) {
       omit: { passwordHash: true, ...(id ? {} : { passportPhoto: true, identificationDocument: true }) },
       where: {
         ...(id ? { id } : {}),
+        ...(sessionUser.role === "SUPER_ADMIN" ? {} : { role: "MEMBER" as const }),
         ...(search ? { OR: [{ firstName: { contains: search, mode: "insensitive" } }, { lastName: { contains: search, mode: "insensitive" } }, { email: { contains: search, mode: "insensitive" } }, { phone: { contains: search } }, { membership: { membershipNo: { contains: search, mode: "insensitive" } } }] } : {}),
         ...(status || grade || category ? { membership: { ...(status ? { status: status as never } : {}), ...(grade ? { grade: grade as never } : {}), ...(category ? { category: category as never } : {}) } } : {}),
       },
