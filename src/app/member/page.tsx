@@ -5,25 +5,19 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-const notifications = [
-  'Weekly meeting scheduled for Wednesday at 7:00 PM.',
-  'Quarterly dividend distribution is pending review.',
-  'Your loan repayment reminder is due in 3 days.',
-];
-
 const quickActions = [
   { label: 'Add Savings', href: '/member/savings' },
   { label: 'Browse Loan Plans', href: '/loans' },
-  { label: 'Track Shares', href: '/member/shares' },
+  { label: 'Buy Shares', href: '/member/shares' },
   { label: 'Download Statement', href: '/member/savings' },
 ];
 
 export default function MemberDashboardPage() {
   const router = useRouter();
-  const [memberTitle, setMemberTitle] = useState('Welcome back, Ada Musa');
-  const [membershipNo, setMembershipNo] = useState('CPYF-1789822284234');
+  const [memberTitle, setMemberTitle] = useState('Welcome back');
+  const [membershipNo, setMembershipNo] = useState('');
   const [memberRole, setMemberRole] = useState('MEMBER');
-  const [weeklyTarget, setWeeklyTarget] = useState(2500);
+  const [weeklyTarget, setWeeklyTarget] = useState(0);
   const [grade, setGrade] = useState('ACTIVE');
   const [categoryLabel, setCategoryLabel] = useState('ACTIVE MEMBER');
   const [membershipStatus, setMembershipStatus] = useState('PENDING');
@@ -31,16 +25,19 @@ export default function MemberDashboardPage() {
   const [profilePhoto, setProfilePhoto] = useState('');
   const [financials, setFinancials] = useState({ savings: 0, weeklySavings: 0, shares: 0, shareValue: 0, outstandingLoan: 0, repayments: 0 });
   const [loanApplications, setLoanApplications] = useState<Array<{ applicationNo?: string; type: string; amount: number; purpose: string; status: string; createdAt: string }>>([]);
-  const [loanForm, setLoanForm] = useState({ type: 'GENERAL', amount: '250000', purpose: 'Business expansion and working capital' });
+  const [loanForm, setLoanForm] = useState({ type: 'GENERAL', amount: '', purpose: '' });
+  const [notificationItems, setNotificationItems] = useState<Array<{ id: string; title: string; body: string }>>([]);
+  const [recentActivity, setRecentActivity] = useState<Array<{ id: string; type: string; amount: number; createdAt: string; status: string }>>([]);
+  const [monthlySavings, setMonthlySavings] = useState<number[]>(new Array(12).fill(0));
   const [loanMessage, setLoanMessage] = useState('');
   const [profileMessage, setProfileMessage] = useState('');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [profile, setProfile] = useState({
-    firstName: 'Ada',
-    lastName: 'Musa',
+    firstName: '',
+    lastName: '',
     email: '',
-    phone: '+2348000000002',
-    weeklyTarget: '2500',
+    phone: '',
+    weeklyTarget: '0',
     membershipType: 'Appearance Member',
   });
 
@@ -110,6 +107,13 @@ export default function MemberDashboardPage() {
         const entries = (savings.transactions ?? []) as Array<{ amount: number; createdAt: string; status: string; reversedAt?: string | null }>;
         const currentWeek = entries.filter((entry) => new Date(entry.createdAt).getTime() > Date.now() - 7 * 86400000).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
         setFinancials((current) => ({ ...current, savings: Number(savings.totalSavings || 0), weeklySavings: currentWeek }));
+        const months = new Array(12).fill(0);
+        const year = new Date().getFullYear();
+        entries.forEach((entry) => {
+          const date = new Date(entry.createdAt);
+          if (date.getFullYear() === year && entry.status === 'POSTED' && !entry.reversedAt) months[date.getMonth()] += Number(entry.amount || 0);
+        });
+        setMonthlySavings(months);
       }
       if (sharesResponse.ok) {
         const shares = await sharesResponse.json();
@@ -119,7 +123,8 @@ export default function MemberDashboardPage() {
       }
     };
     loadFinancials();
-    fetch('/api/notifications', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => { if (data) setUnreadNotifications(Number(data.unread || 0)); }).catch(() => undefined);
+    fetch('/api/notifications', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => { if (data) { setUnreadNotifications(Number(data.unread || 0)); setNotificationItems((data.notifications ?? []).slice(0, 5)); } }).catch(() => undefined);
+    fetch('/api/transactions', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => { if (data) setRecentActivity((data.transactions ?? []).slice(0, 5)); }).catch(() => undefined);
   }, [router]);
 
   const summaryCards = [
@@ -129,8 +134,6 @@ export default function MemberDashboardPage() {
     { label: 'Available Loan', value: `₦${(financials.savings * (grade === 'ACTIVE' ? 2 : 3)).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
     { label: 'Outstanding Loan', value: `₦${loanApplications.reduce((sum, item) => sum + Number(item.amount || 0), 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600' },
     { label: 'Account Balance', value: `₦${financials.savings.toLocaleString()}`, tone: 'bg-indigo-50 text-indigo-600' },
-    { label: 'Property Loan Balance', value: '₦0', tone: 'bg-orange-50 text-orange-600' },
-    { label: 'Commodity Loan Balance', value: '₦0', tone: 'bg-cyan-50 text-cyan-600' },
   ];
 
   const shareProgress = [
@@ -139,16 +142,14 @@ export default function MemberDashboardPage() {
     { label: 'Share Value', value: `₦${financials.shareValue.toLocaleString()}`, tone: 'bg-emerald-50 text-emerald-600' },
   ];
 
-  const recentTransactions = loanApplications.length > 0 ? loanApplications.slice(0, 4).map((loan) => ({
-    type: loan.type,
-    amount: `₦${Number(loan.amount || 0).toLocaleString()}`,
-    date: new Date(loan.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    status: loan.status || 'PENDING',
-  })) : [
-    { type: 'Savings', amount: '+₦25,000', date: 'Today', status: 'Completed' },
-    { type: 'Share Purchase', amount: '+₦10,000', date: 'Sun 08 Sep', status: 'Completed' },
-    { type: 'Loan Disbursement', amount: '+₦250,000', date: 'Fri 06 Sep', status: 'Paid' },
-  ];
+  const recentTransactions = recentActivity.map((entry) => ({
+    key: entry.id,
+    type: entry.type.replace(/_/g, ' '),
+    amount: `₦${Number(entry.amount || 0).toLocaleString()}`,
+    date: new Date(entry.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+    status: entry.status || 'POSTED',
+  }));
+  const maxMonthly = Math.max(...monthlySavings, 1);
 
   const handleLoanSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -171,7 +172,7 @@ export default function MemberDashboardPage() {
       }
 
       setLoanMessage('Loan application submitted successfully.');
-      setLoanForm({ type: 'GENERAL', amount: '250000', purpose: 'Business expansion and working capital' });
+      setLoanForm({ type: 'GENERAL', amount: '', purpose: '' });
       const refreshed = await fetch('/api/loans', { cache: 'no-store' });
       const refreshedData = await refreshed.json();
       if (Array.isArray(refreshedData.loans)) setLoanApplications(refreshedData.loans);
@@ -183,7 +184,7 @@ export default function MemberDashboardPage() {
   const handleProfileSave = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setProfileMessage('Personal savings goal updated.');
-    setWeeklyTarget(Number(profile.weeklyTarget || 2500));
+    setWeeklyTarget(Number(profile.weeklyTarget || 0));
   };
 
   return (
@@ -221,7 +222,7 @@ export default function MemberDashboardPage() {
         </div>
 
         <section className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
-          {profilePhoto ? <img src={profilePhoto} alt="Profile" className="h-20 w-20 rounded-full object-cover" /> : <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-100 text-2xl font-bold text-[#6A11CB]">{profile.firstName.slice(0, 1)}{profile.lastName.slice(0, 1)}</div>}
+          {profilePhoto ? <img src={profilePhoto} alt="Member passport" className="h-32 w-28 rounded-xl border-2 border-violet-200 object-cover shadow" /> : <div className="flex h-32 w-28 items-center justify-center rounded-xl bg-violet-100 text-3xl font-bold text-[#6A11CB]">{profile.firstName.slice(0, 1)}{profile.lastName.slice(0, 1)}</div>}
           <div className="flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Membership Profile</p>
             <h2 className="mt-1 text-2xl font-bold">{profile.firstName} {profile.lastName}</h2>
@@ -261,13 +262,13 @@ export default function MemberDashboardPage() {
           <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-[#1d1731]">Savings Overview</h2>
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">This Month</span>
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-[#6A11CB]">{new Date().getFullYear()}</span>
             </div>
 
             <div className="grid h-52 grid-cols-12 items-end gap-3">
-              {[42, 58, 46, 72, 60, 88, 76, 92, 85, 70, 96, 100].map((height, index) => (
-                <div key={index} className="flex flex-col items-center gap-2">
-                  <div className="w-full rounded-t-[1rem] bg-gradient-to-t from-[#6A11CB] to-[#c4b5fd]" style={{ height: `${height}%` }} />
+              {monthlySavings.map((amount, index) => (
+                <div key={index} className="flex flex-col items-center gap-2" title={`₦${amount.toLocaleString()}`}>
+                  <div className="w-full rounded-t-[1rem] bg-gradient-to-t from-[#6A11CB] to-[#c4b5fd]" style={{ height: `${Math.max((amount / maxMonthly) * 100, 2)}%` }} />
                   <span className="text-[10px] font-semibold uppercase text-slate-400">{['J','F','M','A','M','J','J','A','S','O','N','D'][index]}</span>
                 </div>
               ))}
@@ -306,7 +307,7 @@ export default function MemberDashboardPage() {
                 </thead>
                 <tbody>
                   {recentTransactions.map((item) => (
-                    <tr key={`${item.type}-${item.date}`} className="border-t border-violet-100">
+                    <tr key={item.key} className="border-t border-violet-100">
                       <td className="px-4 py-3 font-medium text-[#1d1731]">{item.type}</td>
                       <td className="px-4 py-3 text-slate-600">{item.date}</td>
                       <td className="px-4 py-3 font-semibold text-[#1d1731]">{item.amount}</td>
@@ -317,6 +318,7 @@ export default function MemberDashboardPage() {
                   ))}
                 </tbody>
               </table>
+              {!recentTransactions.length && <p className="p-8 text-center text-sm text-slate-500">No transactions yet.</p>}
             </div>
           </section>
 
@@ -453,12 +455,13 @@ export default function MemberDashboardPage() {
           <section className="rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold text-[#1d1731]">Notifications</h2>
             <div className="mt-5 space-y-4">
-              {notifications.map((item) => (
-                <div key={item} className="flex gap-3 rounded-xl bg-violet-50 p-3 text-sm text-slate-700">
+              {notificationItems.map((item) => (
+                <div key={item.id} className="flex gap-3 rounded-xl bg-violet-50 p-3 text-sm text-slate-700">
                   <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#6A11CB]" />
-                  <span>{item}</span>
+                  <span><b>{item.title}</b><br />{item.body}</span>
                 </div>
               ))}
+              {!notificationItems.length && <p className="text-sm text-slate-500">No notifications yet.</p>}
             </div>
           </section>
         </div>

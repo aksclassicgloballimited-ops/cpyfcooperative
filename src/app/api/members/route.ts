@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
@@ -22,8 +22,13 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const grade = searchParams.get("grade");
     const category = searchParams.get("category");
+    const id = searchParams.get("id");
+    if (id && !["SUPER_ADMIN", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
     const members = await prisma.user.findMany({
+      // Passwords are never returned; the heavy uploaded files are only returned for a single-member lookup.
+      omit: { passwordHash: true, ...(id ? {} : { passportPhoto: true, identificationDocument: true }) },
       where: {
+        ...(id ? { id } : {}),
         ...(search ? { OR: [{ firstName: { contains: search, mode: "insensitive" } }, { lastName: { contains: search, mode: "insensitive" } }, { email: { contains: search, mode: "insensitive" } }, { phone: { contains: search } }, { membership: { membershipNo: { contains: search, mode: "insensitive" } } }] } : {}),
         ...(status || grade || category ? { membership: { ...(status ? { status: status as never } : {}), ...(grade ? { grade: grade as never } : {}), ...(category ? { category: category as never } : {}) } } : {}),
       },
@@ -108,24 +113,49 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const { userId, status, role, reason, ...profile } = await request.json();
-    if (!userId || (!status && !role && !Object.keys(profile).length)) {
+    const { userId, status, role, reason, membershipNo: rawMembershipNo, ...profile } = await request.json();
+    const membershipNo = typeof rawMembershipNo === "string" ? rawMembershipNo.trim() : "";
+    if (!userId || (!status && !role && !membershipNo && !Object.keys(profile).length)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
     if (role && !["ADMIN", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
     if (Object.keys(profile).length && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can correct member profile details" }, { status: 403 });
+    if (membershipNo) {
+      if (!["SUPER_ADMIN", "ADMIN", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only an Admin or Membership Officer can edit membership numbers" }, { status: 403 });
+      const taken = await prisma.membership.findFirst({ where: { membershipNo, NOT: { userId } } });
+      if (taken) return NextResponse.json({ error: "That membership number is already in use" }, { status: 409 });
+    }
     if (status && !["ACTIVE", "REJECTED", "SUSPENDED", "PENDING"].includes(status)) return NextResponse.json({ error: "Invalid membership status" }, { status: 400 });
     const member = await prisma.$transaction(async (tx) => {
-      const updated = await tx.membership.update({ where: { userId }, data: status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
+      const updated = await tx.membership.update({ where: { userId }, data: { ...(status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}), ...(membershipNo ? { membershipNo } : {}) }, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
       if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "email", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string").map(([key, value]) => [key, key === "email" ? String(value).trim().toLowerCase() : String(value).trim()])) } });
       if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
-      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, profile }), reason: reason || "Member record updated" } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, membershipNo, profile }), reason: reason || "Member record updated" } });
       return updated;
     });
     return NextResponse.json({ member }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Member status update failed";
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const sessionUser = await getUserFromRequest(request);
+  if (!sessionUser || sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can delete members" }, { status: 403 });
+  const userId = new URL(request.url).searchParams.get("userId");
+  if (!userId) return NextResponse.json({ error: "Member is required" }, { status: 400 });
+  if (userId === sessionUser.id) return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.role !== "MEMBER") return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id: userId } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "MEMBER_DELETED", entityType: "User", entityId: userId, previousValue: target.email, newValue: "DELETED", reason: `Deleted member ${target.firstName} ${target.lastName} (${target.email})` } });
+    });
+    return NextResponse.json({ message: "Member deleted" });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to delete member" }, { status: 500 });
   }
 }

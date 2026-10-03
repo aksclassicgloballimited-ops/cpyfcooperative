@@ -109,6 +109,7 @@ model User {
   guarantorRequestsReceived GuarantorRequest[] @relation("GuarantorMember")
   developmentLevies DevelopmentLevy[]
   passwordResets PasswordReset[]
+  sharePurchaseRequests SharePurchaseRequest[]
 }
 
 model Session {
@@ -362,4 +363,20 @@ model PasswordReset {
   usedAt    DateTime?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SharePurchaseRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  units           Int
+  unitPrice       Float
+  totalAmount     Float
+  transactionNo   String?
+  receipt         String?
+  status          String   @default("PENDING")
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

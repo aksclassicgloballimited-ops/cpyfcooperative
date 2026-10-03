@@ -126,6 +126,14 @@ export default function StaffAccountsPage() {
     setMessage(response.ok ? `Password reset for ${member.firstName} ${member.lastName}. New password: ${newPassword}` : data.error || 'Unable to reset password');
   };
 
+  const deleteStaff = async (member: StaffMember) => {
+    if (!window.confirm(`Permanently delete ${member.firstName} ${member.lastName}? This cannot be undone.`)) return;
+    const response = await fetch(`/api/admin/staff?id=${encodeURIComponent(member.id)}`, { method: 'DELETE' });
+    const data = await response.json();
+    setMessage(response.ok ? `${member.firstName} ${member.lastName} has been deleted.` : data.error || 'Unable to delete account');
+    if (response.ok) await loadStaff();
+  };
+
   const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editing) return;
@@ -230,6 +238,9 @@ export default function StaffAccountsPage() {
                         </button>
                         <button type="button" onClick={() => resetPassword(member)} className="rounded-full border border-violet-200 px-3 py-1 text-xs font-bold text-[#6A11CB]">
                           Reallocate Password
+                        </button>
+                        <button type="button" onClick={() => deleteStaff(member)} className="rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                          Delete
                         </button>
                       </div>
                     </td>

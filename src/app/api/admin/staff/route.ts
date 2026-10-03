@@ -168,3 +168,26 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to update staff account" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const actor = await requireSuperAdmin(request);
+  if (!actor) return NextResponse.json({ error: "Only a Super Administrator can delete staff accounts" }, { status: 403 });
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Staff account is required" }, { status: 400 });
+  if (id === actor.id) return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target || !STAFF_ROLE_SET.includes(target.role)) return NextResponse.json({ error: "Staff account not found" }, { status: 404 });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Keep the audit trail: entries written by the deleted account are handed to the Super Admin performing the deletion.
+      await tx.auditEntry.updateMany({ where: { actorId: target.id }, data: { actorId: actor.id } });
+      await tx.user.delete({ where: { id: target.id } });
+      await tx.auditEntry.create({
+        data: { actorId: actor.id, action: "STAFF_ACCOUNT_DELETED", entityType: "User", entityId: target.id, previousValue: target.role, newValue: "DELETED", reason: `Deleted ${target.firstName} ${target.lastName} (${target.email})` },
+      });
+    });
+    return NextResponse.json({ message: "Staff account deleted" });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to delete staff account" }, { status: 500 });
+  }
+}
