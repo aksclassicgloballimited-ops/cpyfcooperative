@@ -249,7 +249,7 @@ export default function HomePage() {
         {adBannerOpen && (
           <div className="relative z-50 bg-[#FACC15] px-10 py-2 text-center text-xs font-semibold text-[#1d1731] sm:text-sm">
             📢 Want to place an advert on the cooperative site? Contact the Admin or any Executive —{' '}
-            <a href="tel:+2349053604770" className="underline">09053604770</a> ·{' '}
+            <a href="tel:+2347053604770" className="underline">07053604770</a> ·{' '}
             <a href="mailto:cpyfcooperativesociety@gmail.com" className="underline">cpyfcooperativesociety@gmail.com</a>
             <button type="button" aria-label="Dismiss advert notice" onClick={() => setAdBannerOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold">×</button>
           </div>
@@ -875,7 +875,7 @@ export default function HomePage() {
                 <ul className="mt-5 space-y-3 text-sm text-violet-100">
                   <li>Nigeria</li>
                   <li>
-                    <a href="tel:+2349053604770" className="transition hover:text-white">09053604770</a>
+                    <a href="tel:+2347053604770" className="transition hover:text-white">07053604770</a>
                   </li>
                   <li>
                     <a href="mailto:cpyfcooperativesociety@gmail.com" className="transition hover:text-white">cpyfcooperativesociety@gmail.com</a>
