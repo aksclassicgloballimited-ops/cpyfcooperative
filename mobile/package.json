@@ -1,0 +1,16 @@
+{
+  "name": "cpyif-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor Android wrapper for the CPYIF cooperative site",
+  "scripts": {
+    "sync": "cap sync android",
+    "open": "cap open android",
+    "assets": "capacitor-assets generate --android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  }
+}

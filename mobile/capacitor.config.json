@@ -1,0 +1,12 @@
+{
+  "appId": "com.cpyif.cooperative",
+  "appName": "CPYIF",
+  "webDir": "www",
+  "server": {
+    "url": "https://www.cpyfcooperative.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
