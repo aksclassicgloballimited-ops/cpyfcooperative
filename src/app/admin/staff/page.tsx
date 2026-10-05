@@ -17,7 +17,7 @@ type StaffMember = {
 
 const ROLE_OPTIONS = [
   { value: 'EXECUTIVE', label: 'Executive' },
-  { value: 'ADMIN', label: 'Admin' },
+  { value: 'PRESIDENT', label: 'President' },
   { value: 'FINANCE_OFFICER', label: 'Finance Officer' },
   { value: 'LOAN_OFFICER', label: 'Loan Officer' },
   { value: 'MEMBERSHIP_OFFICER', label: 'Membership Officer' },
@@ -164,7 +164,7 @@ export default function StaffAccountsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-200">Super Admin</p>
           <h1 className="mt-2 text-3xl font-bold">Staff Access Management</h1>
           <p className="mt-2 max-w-3xl text-violet-100">
-            Create and manage login access for Executives, Admins, Finance Officers, Loan Officers, Membership Officers, and Auditors.
+            Create and manage login access for Executives, the President, Finance Officers, Loan Officers, Membership Officers, and Auditors.
           </p>
         </div>
 

@@ -7,6 +7,7 @@ import { getCategoryConfig } from "@/lib/membership";
 import { ensureLoanProducts } from "@/lib/loan-products";
 import { randomUUID } from "crypto";
 import { can, canWrite } from "@/lib/permissions";
+import { sendPushNotification } from "@/lib/push";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -203,6 +204,12 @@ export async function PUT(request: Request) {
         const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
         await tx.notification.create({ data: { userId: loan.userId, title, body: `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
         return loan;
+      });
+      const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
+      await sendPushNotification(updated.userId, {
+        title,
+        body: `Your loan application ${updated.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.`,
+        path: "/member",
       });
       return NextResponse.json({ message: "Loan status updated", loan: updated }, { status: 200 });
     }

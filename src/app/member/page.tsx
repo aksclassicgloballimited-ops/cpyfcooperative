@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { disableMobilePush } from '@/components/NativeMemberNav';
 
 const quickActions = [
   { label: 'Add Savings', href: '/member/savings' },
@@ -51,7 +52,7 @@ export default function MemberDashboardPage() {
         }
 
         const data = await response.json();
-        if (data.user?.role === 'ADMIN' || data.user?.role === 'EXECUTIVE') {
+        if (data.user?.role === 'PRESIDENT' || data.user?.role === 'EXECUTIVE') {
           router.replace('/admin');
           return;
         }
@@ -214,7 +215,7 @@ export default function MemberDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }}
+            onClick={async () => { await disableMobilePush(); await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }}
             className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold"
           >
             Logout

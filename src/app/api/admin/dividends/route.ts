@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { sendPushNotification } from "@/lib/push";
 
 /**
  * Super-Admin-only endpoint to post (or reverse) a dividend payment for a
@@ -45,6 +46,10 @@ export async function POST(request: Request) {
       });
       await tx.notification.create({ data: { userId, title: amount > 0 ? "Dividend paid" : "Dividend adjustment", body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been credited to" : "was reversed from"} your account.` } });
       return transaction;
+    });
+    await sendPushNotification(userId, {
+      title: amount > 0 ? "Dividend paid" : "Dividend adjustment",
+      body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been credited to" : "was reversed from"} your account.`,
     });
 
     return NextResponse.json({ transaction: result }, { status: 201 });

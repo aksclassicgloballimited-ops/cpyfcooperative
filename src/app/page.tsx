@@ -248,7 +248,7 @@ export default function HomePage() {
       <div className="min-h-screen bg-white text-[#1d1731] transition-colors duration-300 dark:bg-[#130c23] dark:text-white">
         {adBannerOpen && (
           <div className="relative z-50 bg-[#FACC15] px-10 py-2 text-center text-xs font-semibold text-[#1d1731] sm:text-sm">
-            📢 Want to place an advert on the cooperative site? Contact the Admin or any Executive —{' '}
+            📢 Want to place an advert on the cooperative site? Contact the President or any Executive —{' '}
             <a href="tel:+2347053604770" className="underline">07053604770</a> ·{' '}
             <a href="mailto:cpyfcooperativesociety@gmail.com" className="underline">cpyfcooperativesociety@gmail.com</a>
             <button type="button" aria-label="Dismiss advert notice" onClick={() => setAdBannerOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold">×</button>
@@ -894,7 +894,9 @@ export default function HomePage() {
             </div>
 
             <div className="mt-10 border-t border-white/10 pt-6 text-sm text-violet-100">
-              © 2026 CPYIF Cooperative Society. All rights reserved. Privacy Policy Terms &amp; Conditions
+              © 2026 CPYIF Cooperative Society. All rights reserved.{' '}
+              <a href="/privacy" className="underline underline-offset-4 hover:text-white">Privacy Policy</a>{' '}
+              <a href="/cpyfterms.pdf" className="underline underline-offset-4 hover:text-white">Terms &amp; Conditions</a>
             </div>
           </div>
         </footer>

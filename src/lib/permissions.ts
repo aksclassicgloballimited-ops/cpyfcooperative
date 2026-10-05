@@ -1,11 +1,11 @@
-export type Role = "MEMBER" | "EXECUTIVE" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_OFFICER" | "LOAN_OFFICER" | "MEMBERSHIP_OFFICER" | "AUDITOR";
+export type Role = "MEMBER" | "EXECUTIVE" | "PRESIDENT" | "SUPER_ADMIN" | "FINANCE_OFFICER" | "LOAN_OFFICER" | "MEMBERSHIP_OFFICER" | "AUDITOR";
 export type Permission = "members" | "finance" | "loans" | "reports" | "settings" | "developmentLevy" | "staff";
 
 // Read/visibility permissions - controls what a role can see.
 const rolePermissions: Record<Role, Permission[]> = {
   MEMBER: [],
   EXECUTIVE: ["members", "finance", "loans", "reports", "settings"],
-  ADMIN: ["members", "finance", "loans", "reports", "settings", "developmentLevy"],
+  PRESIDENT: ["members", "finance", "loans", "reports", "settings", "developmentLevy"],
   SUPER_ADMIN: ["members", "finance", "loans", "reports", "settings", "developmentLevy", "staff"],
   FINANCE_OFFICER: ["finance", "reports", "developmentLevy"],
   LOAN_OFFICER: ["loans", "reports"],
@@ -16,8 +16,8 @@ const rolePermissions: Record<Role, Permission[]> = {
 // Write/mutation permissions - controls what a role can change. Auditor is read-only.
 const writePermissions: Record<Role, Permission[]> = {
   MEMBER: [],
-  EXECUTIVE: ["members", "finance", "loans", "settings"],
-  ADMIN: ["members", "finance", "loans", "settings"],
+  EXECUTIVE: ["members", "finance", "loans"],
+  PRESIDENT: ["members", "finance", "loans"],
   SUPER_ADMIN: ["members", "finance", "loans", "settings", "staff"],
   FINANCE_OFFICER: ["finance"],
   LOAN_OFFICER: ["loans"],

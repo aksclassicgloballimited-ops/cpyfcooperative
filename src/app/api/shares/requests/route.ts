@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { can, canWrite } from "@/lib/permissions";
+import { sendPushNotification } from "@/lib/push";
 
 const SHARE_UNIT_PRICE = 10000;
 
@@ -73,6 +74,13 @@ export async function PUT(request: Request) {
         await tx.auditEntry.create({ data: { actorId: reviewer.id, action: "SHARE_PURCHASE_REJECTED", entityType: "SharePurchaseRequest", entityId: pending.id, previousValue: "PENDING", newValue: "REJECTED", reason: String(body.reason || "Payment rejected") } });
         await tx.notification.create({ data: { userId: pending.userId, title: "Share purchase rejected", body: `Your share purchase request was rejected. ${body.reason || ""}` } });
       }
+    });
+    await sendPushNotification(pending.userId, {
+      title: body.status === "APPROVED" ? "Share purchase approved" : "Share purchase rejected",
+      body: body.status === "APPROVED"
+        ? `${pending.units} share unit(s) have been added to your account.`
+        : `Your share purchase request was rejected. ${body.reason || ""}`.trim(),
+      path: "/member/shares",
     });
     return NextResponse.json({ ok: true, result });
   } catch (error) {

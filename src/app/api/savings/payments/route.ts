@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { can, canWrite } from "@/lib/permissions";
 import { applyDevelopmentLevy } from "@/lib/development-levy";
+import { sendPushNotification } from "@/lib/push";
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
@@ -76,6 +77,12 @@ export async function PUT(request: Request) {
       await tx.notification.create({ data: { userId: payment.userId, title: "Savings payment rejected", body: `Your savings payment was rejected. ${body.reason || ""}` } });
     }
     return updated;
+  });
+  await sendPushNotification(payment.userId, {
+    title: body.status === "APPROVED" ? "Savings payment approved" : "Savings payment rejected",
+    body: body.status === "APPROVED"
+      ? "Your savings payment has been approved and added to your balance."
+      : `Your savings payment was rejected. ${body.reason || ""}`.trim(),
   });
   return NextResponse.json({ payment: result });
 }

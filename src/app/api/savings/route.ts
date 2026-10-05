@@ -6,7 +6,7 @@ import { can, canWrite } from "@/lib/permissions";
 
 async function authorized(request: Request) {
   const user = await getUserFromRequest(request);
-  return user && (user.role === "ADMIN" || user.role === "EXECUTIVE" ? user : user);
+  return user;
 }
 
 export async function GET(request: Request) {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 type Member = { id: string; firstName: string; lastName: string; email: string; phone: string; role: string; membership?: { membershipNo: string; status: string; grade: string; category: string } };
-const roles = ['MEMBER', 'SUPER_ADMIN', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'MEMBERSHIP_OFFICER', 'AUDITOR', 'EXECUTIVE', 'ADMIN'];
+const roles = ['MEMBER', 'SUPER_ADMIN', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'MEMBERSHIP_OFFICER', 'AUDITOR', 'EXECUTIVE', 'PRESIDENT'];
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
@@ -15,7 +15,7 @@ export default function AdminMembersPage() {
   const load = () => fetch(`/api/members?search=${encodeURIComponent(search)}${status ? `&status=${status}` : ''}`, { cache: 'no-store' }).then((r) => r.json()).then((data) => setMembers(data.members ?? [])).catch(() => setMessage('Unable to load members'));
   useEffect(() => { load(); fetch('/api/auth/me', { cache: 'no-store' }).then((r) => r.json()).then((data) => setCurrentRole(data.user?.role || '')).catch(() => undefined); }, []);
   const isSuperAdmin = currentRole === 'SUPER_ADMIN';
-  const canEditNumber = ['SUPER_ADMIN', 'ADMIN', 'MEMBERSHIP_OFFICER'].includes(currentRole);
+  const canEditNumber = ['SUPER_ADMIN', 'PRESIDENT', 'MEMBERSHIP_OFFICER'].includes(currentRole);
   const canPrintForm = ['SUPER_ADMIN', 'MEMBERSHIP_OFFICER'].includes(currentRole);
   const editNumber = (member: Member) => { const value = window.prompt('New membership number', member.membership?.membershipNo || ''); if (value && value.trim() && value.trim() !== member.membership?.membershipNo) update(member.id, { membershipNo: value.trim() }); };
   const deleteMember = async (member: Member) => { if (!window.confirm('Permanently delete ' + member.firstName + ' ' + member.lastName + ' and all their records? This cannot be undone.')) return; const response = await fetch('/api/members?userId=' + encodeURIComponent(member.id), { method: 'DELETE' }); const result = await response.json(); setMessage(response.ok ? 'Member deleted.' : result.error || 'Delete failed'); if (response.ok) load(); };

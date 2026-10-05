@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { staffAccountSchema } from "@/lib/validation";
 
-const STAFF_ROLES = ["EXECUTIVE", "ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR"] as const;
+const STAFF_ROLES = ["EXECUTIVE", "PRESIDENT", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR"] as const;
 type StaffRole = (typeof STAFF_ROLES)[number];
 const STAFF_ROLE_SET: readonly string[] = STAFF_ROLES;
 

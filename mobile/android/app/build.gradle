@@ -8,7 +8,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,12 +16,38 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile System.getenv("CPYIF_KEYSTORE_PATH") ? file(System.getenv("CPYIF_KEYSTORE_PATH")) : file("missing-upload-key.jks")
+            storePassword System.getenv("CPYIF_KEYSTORE_PASSWORD") ?: ""
+            keyAlias System.getenv("CPYIF_KEY_ALIAS") ?: ""
+            keyPassword System.getenv("CPYIF_KEY_PASSWORD") ?: ""
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+tasks.register("verifyReleaseSigning") {
+    doLast {
+        def required = ["CPYIF_KEYSTORE_PATH", "CPYIF_KEYSTORE_PASSWORD", "CPYIF_KEY_ALIAS", "CPYIF_KEY_PASSWORD"]
+        def missing = required.findAll { !System.getenv(it) }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Release signing requires environment variables: ${missing.join(', ')}")
+        }
+        if (!file(System.getenv("CPYIF_KEYSTORE_PATH")).exists()) {
+            throw new GradleException("Upload keystore was not found at CPYIF_KEYSTORE_PATH.")
+        }
+    }
+}
+
+tasks.matching { it.name in ["bundleRelease", "assembleRelease"] }.configureEach {
+    dependsOn("verifyReleaseSigning")
 }
 
 repositories {

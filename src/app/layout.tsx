@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaSetup from "@/components/PwaSetup";
+import NativeMemberNav from "@/components/NativeMemberNav";
 
 export const metadata: Metadata = {
   title: "CPYIF Cooperative Society",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <PwaSetup />
+        <NativeMemberNav />
       </body>
     </html>
   );

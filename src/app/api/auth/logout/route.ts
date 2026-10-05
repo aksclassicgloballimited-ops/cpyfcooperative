@@ -7,9 +7,7 @@ export async function POST(request: Request) {
   const cookie = cookieHeader.split(";").map((item) => item.trim()).find((item) => item.startsWith("cpyif_session="));
   const token = cookie ? decodeURIComponent(cookie.slice("cpyif_session=".length)) : null;
 
-  if (token && process.env.DATABASE_URL) {
-    await prisma.session.deleteMany({ where: { token } });
-  }
+  if (token && process.env.DATABASE_URL) await prisma.session.deleteMany({ where: { token } });
   if (token) sessions.delete(token);
 
   const response = NextResponse.json({ message: "Logged out successfully" });

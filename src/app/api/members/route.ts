@@ -5,6 +5,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { createUserLocal, findUserByEmailLocal, sanitizeUser } from "@/lib/store";
 import { registrationSchema } from "@/lib/validation";
 import { can, canWrite } from "@/lib/permissions";
+import { sendPushNotification } from "@/lib/push";
 
 export async function GET(request: Request) {
   const sessionUser = await getUserFromRequest(request);
@@ -119,11 +120,11 @@ export async function PUT(request: Request) {
     if (!userId || (!status && !role && !membershipNo && !Object.keys(profile).length)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
-    if (role && !["ADMIN", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    if (role && !["PRESIDENT", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
     if (Object.keys(profile).length && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can correct member profile details" }, { status: 403 });
     if (membershipNo) {
-      if (!["SUPER_ADMIN", "ADMIN", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only an Admin or Membership Officer can edit membership numbers" }, { status: 403 });
+      if (!["SUPER_ADMIN", "PRESIDENT", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only a President or Membership Officer can edit membership numbers" }, { status: 403 });
       const taken = await prisma.membership.findFirst({ where: { membershipNo, NOT: { userId } } });
       if (taken) return NextResponse.json({ error: "That membership number is already in use" }, { status: 409 });
     }
@@ -135,6 +136,11 @@ export async function PUT(request: Request) {
       await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, membershipNo, profile }), reason: reason || "Member record updated" } });
       return updated;
     });
+    if (status) {
+      const title = status === "ACTIVE" ? "Registration approved" : "Membership application update";
+      const body = status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.`;
+      await sendPushNotification(userId, { title, body });
+    }
     return NextResponse.json({ member }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Member status update failed";

@@ -11,7 +11,7 @@ datasource db {
 enum Role {
   MEMBER
   EXECUTIVE
-  ADMIN
+  PRESIDENT
   SUPER_ADMIN
   FINANCE_OFFICER
   LOAN_OFFICER
@@ -110,6 +110,19 @@ model User {
   developmentLevies DevelopmentLevy[]
   passwordResets PasswordReset[]
   sharePurchaseRequests SharePurchaseRequest[]
+  pushDevices PushDevice[]
+}
+
+model PushDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {

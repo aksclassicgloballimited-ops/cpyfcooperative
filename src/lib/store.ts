@@ -9,7 +9,8 @@ export type StoredUser = {
   firstName: string;
   lastName: string;
   phone: string;
-  role: "MEMBER" | "EXECUTIVE" | "ADMIN";
+  isActive: boolean;
+  role: "MEMBER" | "EXECUTIVE" | "PRESIDENT";
   createdAt: string;
   membership?: {
     category: "APPEARANCE" | "NON_APPEARANCE";
@@ -61,6 +62,7 @@ export const createUserLocal = async (payload: {
     firstName: payload.firstName,
     lastName: payload.lastName,
     phone: payload.phone,
+    isActive: true,
     role: "MEMBER",
     createdAt: new Date().toISOString(),
     membership: {
@@ -128,6 +130,11 @@ export const getSessionUserLocal = async (token: string | null | undefined) => {
       return null;
     }
 
+    if (!session.user.isActive) {
+      await prisma.session.delete({ where: { token } });
+      return null;
+    }
+
     return session.user;
   }
 
@@ -139,7 +146,11 @@ export const getSessionUserLocal = async (token: string | null | undefined) => {
   }
 
   const user = Array.from(users.values()).find((item) => item.id === session.userId);
-  return user ?? null;
+  if (!user?.isActive) {
+    sessions.delete(token);
+    return null;
+  }
+  return user;
 };
 
 export const createLoanLocal = (userId: string, payload: { type: "GENERAL" | "PROPERTY" | "COMMODITY" | "BUSINESS" | "EMERGENCY"; amount: number; purpose: string }) => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { sendPushNotification } from "@/lib/push";
 
 export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
@@ -20,9 +21,10 @@ export async function PUT(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
-  if (!user || (user.role !== "ADMIN" && user.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!user || (user.role !== "PRESIDENT" && user.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const body = await request.json();
   if (!body.userId || !body.title || !body.body) return NextResponse.json({ error: "Member, title, and message are required" }, { status: 400 });
   const notification = await prisma.notification.create({ data: { userId: String(body.userId), title: String(body.title), body: String(body.body) } });
+  await sendPushNotification(notification.userId, { title: notification.title, body: notification.body });
   return NextResponse.json({ notification }, { status: 201 });
 }

@@ -30,7 +30,7 @@ export const registrationSchema = z.object({
 
 export const staffRoleSchema = z.enum([
   "EXECUTIVE",
-  "ADMIN",
+  "PRESIDENT",
   "FINANCE_OFFICER",
   "LOAN_OFFICER",
   "MEMBERSHIP_OFFICER",
