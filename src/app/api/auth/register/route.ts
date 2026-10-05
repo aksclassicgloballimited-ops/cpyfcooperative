@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
+import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, signSessionJwt } from "@/lib/jwt";
 import { registrationSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -72,6 +73,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Registration is not configured. Add DATABASE_URL to the deployment environment." }, { status: 503 });
     }
 
+    if (!isJwtConfigured()) {
+      return NextResponse.json({ error: "Registration is not configured. Add JWT_SECRET (32+ characters) to the deployment environment." }, { status: 503 });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
       return NextResponse.json({ error: "An account already exists for this email" }, { status: 409 });
@@ -116,15 +121,10 @@ export async function POST(request: Request) {
     });
 
     const { passwordHash: _passwordHash, ...safeUser } = user;
-    const token = await createSessionLocal(user.id);
+    const sid = await createSessionLocal(user.id);
+    const token = await signSessionJwt({ sid, sub: user.id, role: user.role });
     const response = NextResponse.json({ user: safeUser, membershipNo: user.membership?.membershipNo }, { status: 201 });
-    response.cookies.set("cpyif_session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed";

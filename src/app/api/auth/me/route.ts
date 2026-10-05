@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionUserLocal } from "@/lib/store";
+import { getSessionTokenFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MembershipGrade } from "@prisma/client";
 
 export async function GET(request: Request) {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookie = cookieHeader
-    .split(";")
-    .map((item) => item.trim())
-    .find((item) => item.startsWith("cpyif_session="));
-
-  const token = cookie ? decodeURIComponent(cookie.split("=")[1] ?? "") : null;
+  const token = await getSessionTokenFromRequest(request);
   const user = await getSessionUserLocal(token);
 
   if (!user) {
