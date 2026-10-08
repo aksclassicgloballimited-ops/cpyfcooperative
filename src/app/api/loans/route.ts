@@ -27,9 +27,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ products: await ensureLoanProducts() });
     }
 
+    const recordId = searchParams.get("id");
+    if (recordId) {
+      if (!["SUPER_ADMIN", "FINANCE_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only the Super Administrator or Financial Officer can print loan records" }, { status: 403 });
+      const record = await prisma.loanApplication.findUnique({
+        where: { id: recordId },
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true, phone: true, address: true, passportPhoto: true, membership: { select: { membershipNo: true, grade: true, category: true } } } },
+          guarantorRequests: { include: { guarantor: { select: { firstName: true, lastName: true, phone: true } } } },
+          statusHistory: { orderBy: { createdAt: "asc" } },
+        },
+      });
+      if (!record) return NextResponse.json({ error: "Loan not found" }, { status: 404 });
+      if (!["APPROVED", "DISBURSED", "ACTIVE", "COMPLETED"].includes(record.status)) return NextResponse.json({ error: "A loan record can only be printed after the loan is approved" }, { status: 409 });
+      return NextResponse.json({ loan: record });
+    }
+
     if (process.env.DATABASE_URL) {
       const loanApplications = await prisma.loanApplication.findMany({
-        include: { user: { select: { firstName: true, lastName: true, email: true, role: true } } },
+        include: { user: { select: { firstName: true, lastName: true, email: true, role: true } }, guarantorRequests: { select: { id: true, status: true, guarantorMembershipNo: true, guarantor: { select: { firstName: true, lastName: true } } } } },
         orderBy: { createdAt: "desc" },
       });
       return NextResponse.json({ loans: loanApplications }, { status: 200 });
@@ -212,6 +228,27 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Invalid loan status" }, { status: 400 });
     }
 
+    const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (normalizedStatus === "REJECTED" && reasonText.length < 3) {
+      return NextResponse.json({ error: "A reason is required when rejecting a loan" }, { status: 400 });
+    }
+
+    let bypassedGuarantors = false;
+    if (process.env.DATABASE_URL && ["APPROVED", "DISBURSED", "ACTIVE"].includes(normalizedStatus)) {
+      const target = await prisma.loanApplication.findUnique({ where: { id }, select: { guarantorMembershipNo: true, guarantor2MembershipNo: true, guarantorRequests: { select: { status: true, guarantorMembershipNo: true } } } });
+      if (!target) return NextResponse.json({ error: "Loan application not found" }, { status: 404 });
+      const required = [target.guarantorMembershipNo, target.guarantor2MembershipNo].filter(Boolean).length;
+      const accepted = target.guarantorRequests.filter((item) => item.status === "ACCEPTED").length;
+      const guarantorsComplete = target.guarantorRequests.length >= required && target.guarantorRequests.every((item) => item.status === "ACCEPTED");
+      if (!guarantorsComplete) {
+        // Only the Super Administrator may bypass guarantor acceptance.
+        if (sessionUser.role !== "SUPER_ADMIN") {
+          return NextResponse.json({ error: `This loan cannot be approved until all guarantors accept the request (${accepted} of ${Math.max(required, target.guarantorRequests.length)} accepted).` }, { status: 403 });
+        }
+        bypassedGuarantors = true;
+      }
+    }
+
     if (process.env.DATABASE_URL) {
       const updated = await prisma.$transaction(async (tx) => {
         const previous = await tx.loanApplication.findUnique({ where: { id }, select: { status: true, userId: true, applicationNo: true } });
@@ -223,16 +260,16 @@ export async function PUT(request: Request) {
             reviewedAt: new Date(),
           },
         });
-        await tx.loanStatusHistory.create({ data: { loanId: id, fromStatus: previous?.status, toStatus: normalizedStatus, changedBy: sessionUser.id, reason: body.reason ? String(body.reason) : null } });
-        await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "LOAN_STATUS_CHANGE", entityType: "LoanApplication", entityId: id, previousValue: previous?.status, newValue: normalizedStatus, reason: body.reason ? String(body.reason) : "Loan status updated", loanId: id } });
+        await tx.loanStatusHistory.create({ data: { loanId: id, fromStatus: previous?.status, toStatus: normalizedStatus, changedBy: sessionUser.id, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || null } });
+        await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "LOAN_STATUS_CHANGE", entityType: "LoanApplication", entityId: id, previousValue: previous?.status, newValue: normalizedStatus, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || "Loan status updated", loanId: id } });
         const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
-        await tx.notification.create({ data: { userId: loan.userId, title, body: `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
+        await tx.notification.create({ data: { userId: loan.userId, title, body: normalizedStatus === "REJECTED" ? `Your loan application ${loan.applicationNo} was rejected. Reason: ${reasonText}` : `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
         return loan;
       });
       const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
       await sendPushNotification(updated.userId, {
         title,
-        body: `Your loan application ${updated.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.`,
+        body: normalizedStatus === "REJECTED" ? `Your loan application ${updated.applicationNo} was rejected. Reason: ${reasonText}` : `Your loan application ${updated.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.`,
         path: "/member",
       });
       return NextResponse.json({ message: "Loan status updated", loan: updated }, { status: 200 });

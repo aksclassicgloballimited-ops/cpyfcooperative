@@ -112,17 +112,22 @@ export default function AdminDashboardPage() {
 
   const handleReview = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
+      let reason = '';
+      if (status === 'REJECTED') {
+        const entered = window.prompt('Reason for rejecting this loan (the member will see this)');
+        if (!entered || !entered.trim()) return;
+        reason = entered.trim();
+      }
       const response = await fetch('/api/loans', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, reason }),
       });
-
-      if (response.ok) {
-        await loadAdminData();
-      }
+      const result = await response.json().catch(() => ({}));
+      setFinancialMessage(response.ok ? 'Loan ' + status.toLowerCase() + '.' : result.error || 'Loan update failed');
+      if (response.ok) await loadAdminData();
     } catch {
-      // fail silently for now
+      setFinancialMessage('Loan update failed');
     }
   };
 
