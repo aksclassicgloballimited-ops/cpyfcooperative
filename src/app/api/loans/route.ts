@@ -95,6 +95,12 @@ export async function POST(request: Request) {
       const category = await getCategoryConfig(membership.grade);
       const joinedAt = membership.joinedAt ?? new Date();
       const membershipMonths = Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
+      if (parsed.data.type === "GENERAL" && (!parsed.data.guarantorMembershipNo || !parsed.data.guarantor2MembershipNo)) {
+        return NextResponse.json({ error: "A General Loan requires two guarantors. Enter both guarantor membership numbers." }, { status: 400 });
+      }
+      if (parsed.data.guarantorMembershipNo && parsed.data.guarantorMembershipNo === parsed.data.guarantor2MembershipNo) {
+        return NextResponse.json({ error: "The two guarantors must be different members" }, { status: 400 });
+      }
       if (!eligibilityOverride && membershipMonths < category.minMembershipMonths) {
         return NextResponse.json({ error: `Loan applications become available after ${category.minMembershipMonths} months of membership` }, { status: 403 });
       }
@@ -116,14 +122,17 @@ export async function POST(request: Request) {
       const fee = product.processingFeeType === "PERCENTAGE" ? parsed.data.amount * product.processingFeeValue / 100 : product.processingFeeValue;
       const period = parsed.data.repaymentPeriod || product.repaymentPeriod;
       const totalRepayment = parsed.data.amount + fee;
-      let guarantor: { id: string; membershipNo: string } | null = null;
-      if (parsed.data.guarantorMembershipNo) {
-        const candidate = await prisma.membership.findUnique({ where: { membershipNo: parsed.data.guarantorMembershipNo }, select: { userId: true, membershipNo: true, status: true, joinedAt: true } });
+      const guarantors: { id: string; membershipNo: string }[] = [];
+      for (const number of [parsed.data.guarantorMembershipNo, parsed.data.guarantor2MembershipNo]) {
+        if (!number) continue;
+        const candidate = await prisma.membership.findUnique({ where: { membershipNo: number }, select: { userId: true, membershipNo: true, status: true, joinedAt: true, loanAccess: true } });
         const months = candidate?.joinedAt ? Math.floor((Date.now() - candidate.joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)) : 0;
-        if (!candidate || !candidate.membershipNo || candidate.status !== "ACTIVE" || candidate.userId === sessionUser.id || months < 6) {
-          return NextResponse.json({ error: "The guarantor must be an active cooperative member for at least 6 months" }, { status: 400 });
+        // A Super Administrator override on the guarantor's record waives the six-month rule.
+        const waived = candidate?.loanAccess === "OVERRIDE";
+        if (!candidate || !candidate.membershipNo || candidate.status !== "ACTIVE" || candidate.userId === sessionUser.id || (!waived && months < 6)) {
+          return NextResponse.json({ error: `Guarantor ${number} must be an active cooperative member for at least 6 months` }, { status: 400 });
         }
-        guarantor = { id: candidate.userId, membershipNo: candidate.membershipNo };
+        guarantors.push({ id: candidate.userId, membershipNo: candidate.membershipNo });
       }
       const created = await prisma.$transaction(async (tx) => {
         const application = await tx.loanApplication.create({
@@ -143,7 +152,15 @@ export async function POST(request: Request) {
           guarantorPhone: parsed.data.guarantorPhone,
           guarantorAddress: parsed.data.guarantorAddress,
           guarantorRelationship: parsed.data.guarantorRelationship,
-          guarantorMembershipNo: guarantor?.membershipNo,
+          guarantorMembershipNo: guarantors[0]?.membershipNo,
+          guarantor2Name: parsed.data.guarantor2Name,
+          guarantor2Phone: parsed.data.guarantor2Phone,
+          guarantor2Address: parsed.data.guarantor2Address,
+          guarantor2Relationship: parsed.data.guarantor2Relationship,
+          guarantor2MembershipNo: guarantors[1]?.membershipNo,
+          bankName: parsed.data.bankName,
+          accountNumber: parsed.data.accountNumber,
+          accountName: parsed.data.accountName,
           propertyType: parsed.data.propertyType,
           propertyLocation: parsed.data.propertyLocation,
           propertyValue: parsed.data.propertyValue,
@@ -154,7 +171,7 @@ export async function POST(request: Request) {
         },
         });
         await tx.notification.create({ data: { userId: sessionUser.id, title: "Loan application received", body: `Your ${product.name} application has been submitted for review.` } });
-        if (guarantor) {
+        for (const guarantor of guarantors) {
           await tx.guarantorRequest.create({ data: { loanApplicationId: application.id, requesterId: sessionUser.id, guarantorId: guarantor.id, guarantorMembershipNo: guarantor.membershipNo } });
           await tx.notification.create({ data: { userId: guarantor.id, title: "Guarantor request pending", body: `${sessionUser.firstName} ${sessionUser.lastName} requested you as a guarantor.` } });
         }
