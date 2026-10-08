@@ -55,7 +55,12 @@ export const staffAccountSchema = z.object({
   role: staffRoleSchema,
 });
 
-export const loanApplicationSchema = z.object({
+const blankToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
+
+export const loanApplicationSchema = z.preprocess((input) => {
+  if (!input || typeof input !== "object") return input;
+  return Object.fromEntries(Object.entries(input as Record<string, unknown>).map(([key, value]) => [key, blankToUndefined(value)]));
+}, z.object({
   type: z.enum(["GENERAL", "PROPERTY", "COMMODITY", "BUSINESS", "EMERGENCY"]),
   amount: z.coerce.number().positive(),
   purpose: z.string().trim().min(10),
@@ -74,4 +79,4 @@ export const loanApplicationSchema = z.object({
   supportingDocuments: z.string().optional(),
   documents: z.string().optional(),
   commodityItems: z.string().optional(),
-});
+}));

@@ -77,7 +77,9 @@ export async function POST(request: Request) {
 
     const parsed = loanApplicationSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid loan application", issues: parsed.error.issues }, { status: 400 });
+      const first = parsed.error.issues[0];
+      const field = first?.path.join(".") || "form";
+      return NextResponse.json({ error: `Invalid loan application: please check "${field}" (${first?.message ?? "invalid value"}).`, issues: parsed.error.issues }, { status: 400 });
     }
 
     if (process.env.DATABASE_URL) {
