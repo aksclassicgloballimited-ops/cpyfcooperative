@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
-import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, signSessionJwt } from "@/lib/jwt";
+import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, sessionMaxAgeForRole, signSessionJwt } from "@/lib/jwt";
 
 export const runtime = "nodejs";
 
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const token = await signSessionJwt({ sid, sub: user.id, role: user.role });
     const { passwordHash: _passwordHash, ...safeUser } = user;
     const response = NextResponse.json({ user: safeUser }, { status: 200 });
-    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(sessionMaxAgeForRole(user.role)));
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {

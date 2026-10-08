@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
-import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, signSessionJwt } from "@/lib/jwt";
+import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, sessionMaxAgeForRole, signSessionJwt } from "@/lib/jwt";
 import { registrationSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     const sid = await createSessionLocal(user.id);
     const token = await signSessionJwt({ sid, sub: user.id, role: user.role });
     const response = NextResponse.json({ user: safeUser, status: user.membership?.status }, { status: 201 });
-    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(sessionMaxAgeForRole(user.role)));
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed";

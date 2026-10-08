@@ -18,6 +18,7 @@ function LoanApplicationForm() {
     setMessage('Submitting application...');
     const response = await fetch('/api/loans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: Number(form.amount), repaymentPeriod: form.repaymentPeriod ? Number(form.repaymentPeriod) : undefined, propertyValue: form.propertyValue ? Number(form.propertyValue) : undefined }) });
     const data = await response.json();
+    if (response.status === 401) { setMessage('Your session has expired. Please log in again, then resubmit your application.'); setTimeout(() => { window.location.href = '/#portal'; }, 2500); return; }
     if (!response.ok) { setMessage(data.error || 'Application failed'); return; }
     setMessage(`Application submitted: ${data.loan.applicationNo}`);
     setTimeout(() => router.push('/member'), 1200);

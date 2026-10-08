@@ -2,6 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "cpyf_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60;
+export const MEMBER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+// Staff sessions stay short (1 hour); members get a longer session so multi-step forms do not time out.
+export const sessionMaxAgeForRole = (role: string) => (role === "MEMBER" ? MEMBER_SESSION_MAX_AGE_SECONDS : SESSION_MAX_AGE_SECONDS);
 
 export type SessionClaims = { sid: string; sub: string; role: string };
 
@@ -20,7 +24,7 @@ export const signSessionJwt = async (claims: SessionClaims) => {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
+    .setExpirationTime(`${sessionMaxAgeForRole(claims.role)}s`)
     .sign(secret);
 };
 
