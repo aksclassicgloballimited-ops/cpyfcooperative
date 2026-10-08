@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       where: { email: String(email).trim().toLowerCase() },
       include: { membership: true },
     });
-    if (!user || user.role !== "MEMBER" || !user.isActive || user.membership?.membershipNo.toLowerCase() !== String(membershipNo).trim().toLowerCase()) {
+    if (!user || user.role !== "MEMBER" || !user.isActive || user.membership?.membershipNo?.toLowerCase() !== String(membershipNo).trim().toLowerCase()) {
       return NextResponse.json({ message: GENERIC });
     }
 

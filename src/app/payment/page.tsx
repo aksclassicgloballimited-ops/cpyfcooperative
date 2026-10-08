@@ -15,6 +15,7 @@ type Member = {
 export default function PaymentPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [message, setMessage] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' }).then(async (response) => {
@@ -24,6 +25,10 @@ export default function PaymentPage() {
       }
       const data = await response.json();
       setMember(data.user);
+      if (data.user?.membership?.paymentSubmittedAt) {
+        setSubmitted(true);
+        setMessage('Your registration is under review by the management. Once your payment is verified and your membership is approved, you will receive your membership number. Please check back later.');
+      }
     });
   }, []);
 
@@ -32,7 +37,8 @@ export default function PaymentPage() {
   const confirmPayment = async () => {
     const response = await fetch('/api/membership/payment', { method: 'POST' });
     const data = await response.json();
-    setMessage(response.ok ? data.message : (data.error || 'Unable to submit payment'));
+    if (response.ok) setSubmitted(true);
+    setMessage(response.ok ? 'Your registration is under review by the management. Once your payment is verified and your membership is approved, you will receive your membership number. Please check back later.' : (data.error || 'Unable to submit payment'));
   };
 
   return (
@@ -48,7 +54,7 @@ export default function PaymentPage() {
         <section className="mt-6 rounded-[2rem] bg-white p-6 shadow-sm sm:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#6A11CB]">Registration payment</p>
           <h1 className="mt-2 text-3xl font-bold">Complete your membership payment</h1>
-          <p className="mt-3 text-slate-600">Transfer the registration fee below. Your membership will remain pending until an executive or administrator verifies and approves your application.</p>
+          <p className="mt-3 text-slate-600">Transfer the registration fee below. Your registration will be reviewed by the management. No activity is possible on your portal until your payment is verified and your membership is approved.</p>
           <div className="mt-6 rounded-2xl bg-violet-50 p-5">
             <div className="text-sm font-semibold text-slate-600">Registration fee</div>
             <div className="mt-1 text-3xl font-bold text-[#6A11CB]">{fee}</div>
@@ -56,12 +62,12 @@ export default function PaymentPage() {
               <div><dt className="font-semibold text-slate-500">Bank</dt><dd className="font-bold">UBA</dd></div>
               <div><dt className="font-semibold text-slate-500">Account number</dt><dd className="font-bold">2331842430</dd></div>
               <div className="sm:col-span-2"><dt className="font-semibold text-slate-500">Account name</dt><dd className="font-bold">Circle of Prosperous Youth Forum</dd></div>
-              <div className="sm:col-span-2"><dt className="font-semibold text-slate-500">Membership number</dt><dd className="font-bold">{member?.membership?.membershipNo || 'Loading...'}</dd></div>
+              <div className="sm:col-span-2"><dt className="font-semibold text-slate-500">Membership number</dt><dd className="font-bold">{member?.membership?.membershipNo || 'Assigned after approval'}</dd></div>
             </dl>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button type="button" onClick={confirmPayment} className="rounded-full bg-[#6A11CB] px-5 py-3 font-bold text-white">I have made the payment</button>
-            <a href="/member" className="rounded-full border border-violet-200 px-5 py-3 font-bold text-[#6A11CB]">Go to member portal</a>
+            <button type="button" onClick={confirmPayment} disabled={submitted} className="rounded-full bg-[#6A11CB] px-5 py-3 font-bold text-white disabled:opacity-60">I have made the payment</button>
+            <a href="/member" className="rounded-full border border-violet-200 px-5 py-3 font-bold text-[#6A11CB]">Check approval status</a>
           </div>
           {message && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{message}</p>}
         </section>

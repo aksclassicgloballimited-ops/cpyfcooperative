@@ -406,8 +406,16 @@ export default function HomePage() {
         </header>
 
         <main>
+          <div className="bg-[#1d1234] px-4 py-3 text-sm text-violet-100">
+            <div className="section-shell flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-center">
+              <span className="font-bold uppercase tracking-[0.2em] text-[#FACC15]">Cooperative Account</span>
+              <span>Bank: <b className="text-white">UBA</b></span>
+              <span>Account: <b className="text-white">2331842430</b></span>
+              <span>Name: <b className="text-white">Circle of Prosperous Youth Forum</b></span>
+            </div>
+          </div>
           <section id="home" className="hero-bg overflow-hidden text-white">
-            <div className="section-shell grid min-h-[680px] items-center gap-10 pb-24 pt-36 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="section-shell grid min-h-[680px] items-center gap-10 pb-24 pt-20 lg:grid-cols-[1.05fr_0.95fr]">
               <div>
                 <p className="mb-6 inline-flex rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white">
                   ● &nbsp;Together, we prosper
@@ -435,6 +443,12 @@ export default function HomePage() {
                 <div className="relative grid h-52 w-52 place-items-center rounded-full bg-white p-3 shadow-2xl sm:h-64 sm:w-64">
                   <img src="/cpyf-logo.jpeg" alt="CPYIF logo" className="h-full w-full rounded-full object-cover" />
                 </div>
+                <span className="absolute left-0 top-8 rounded-2xl bg-[#FACC15] px-4 py-3 text-xs font-bold text-purple-950 shadow-lg">
+                  ⚡ Emergency Loan
+                </span>
+                <span className="absolute bottom-4 right-0 rounded-2xl bg-white/90 px-4 py-3 text-xs font-bold text-purple-900 shadow-lg">
+                  ✔ Quick Disbursement
+                </span>
                 <span className="absolute right-0 top-8 rounded-2xl bg-white/90 px-4 py-3 text-xs font-bold text-purple-900 shadow-lg">
                   ✦ Financial freedom
                 </span>
@@ -881,15 +895,6 @@ export default function HomePage() {
                     <a href="mailto:cpyfcooperativesociety@gmail.com" className="transition hover:text-white">cpyfcooperativesociety@gmail.com</a>
                   </li>
                 </ul>
-              </div>
-            </div>
-
-            <div className="mt-10 rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-sm text-violet-100">
-              <div className="font-bold uppercase tracking-[0.2em] text-[#FACC15]">Bank Details</div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <span>Bank: UBA</span>
-                <span>Account: 2331842430</span>
-                <span>Name: Circle of Prosperous Youth Forum</span>
               </div>
             </div>
 

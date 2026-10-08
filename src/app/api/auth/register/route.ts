@@ -14,34 +14,11 @@ async function readUpload(value: FormDataEntryValue | undefined, label: string) 
     throw new Error(`${label} is required`);
   }
 
-  async function nextMembershipNumber() {
-    const year = new Date().getFullYear();
-    const prefix = `CPYF/${year}/`;
-    const latest = await prisma.membership.findFirst({
-      where: { membershipNo: { startsWith: prefix } },
-      orderBy: { membershipNo: "desc" },
-      select: { membershipNo: true },
-    });
-    const sequence = latest ? Number(latest.membershipNo.slice(prefix.length)) + 1 : 1;
-    return `${prefix}${String(sequence).padStart(4, "0")}`;
-  }
   if (value.size > MAX_UPLOAD_BYTES) {
     throw new Error(`${label} must not exceed 25 KB`);
   }
   const bytes = Buffer.from(await value.arrayBuffer()).toString("base64");
   return `data:${value.type || "application/octet-stream"};base64,${bytes}`;
-}
-
-async function nextMembershipNumber() {
-  const year = new Date().getFullYear();
-  const prefix = `CPYF/${year}/`;
-  const latest = await prisma.membership.findFirst({
-    where: { membershipNo: { startsWith: prefix } },
-    orderBy: { membershipNo: "desc" },
-    select: { membershipNo: true },
-  });
-  const sequence = latest ? Number(latest.membershipNo.slice(prefix.length)) + 1 : 1;
-  return `${prefix}${String(sequence).padStart(4, "0")}`;
 }
 
 export async function POST(request: Request) {
@@ -66,6 +43,7 @@ export async function POST(request: Request) {
       dateOfBirth, gender, address, state, localGovernment, nationality,
       occupation, incomeRange, emergencyName, emergencyPhone, emergencyRelationship,
       nomineeName, nomineePhone, nomineeRelationship, nomineeAddress,
+      emergencyAltPhone, emergencyAltEmail, nomineeAltPhone, nomineeAltEmail, referralCode,
       passportPhoto, identificationDocument,
     } = parsed.data;
 
@@ -83,7 +61,6 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hash(password, 12);
-    const membershipNo = await nextMembershipNumber();
     const user = await prisma.user.create({
       data: {
         firstName,
@@ -105,6 +82,11 @@ export async function POST(request: Request) {
         nomineePhone,
         nomineeRelationship,
         nomineeAddress,
+        emergencyAltPhone,
+        emergencyAltEmail,
+        nomineeAltPhone,
+        nomineeAltEmail,
+        referralCode,
         passportPhoto,
         identificationDocument,
         termsAcceptedAt: new Date(),
@@ -112,7 +94,6 @@ export async function POST(request: Request) {
         membership: {
           create: {
             category,
-            membershipNo,
             weeklyTarget,
           },
         },
@@ -123,7 +104,7 @@ export async function POST(request: Request) {
     const { passwordHash: _passwordHash, ...safeUser } = user;
     const sid = await createSessionLocal(user.id);
     const token = await signSessionJwt({ sid, sub: user.id, role: user.role });
-    const response = NextResponse.json({ user: safeUser, membershipNo: user.membership?.membershipNo }, { status: 201 });
+    const response = NextResponse.json({ user: safeUser, status: user.membership?.status }, { status: 201 });
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
     return response;
   } catch (error) {

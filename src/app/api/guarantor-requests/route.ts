@@ -1,3 +1,4 @@
+import { isApprovedMember } from "@/lib/membership";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
+  if (!(await isApprovedMember(user.id))) return NextResponse.json({ error: "Your membership has not been approved yet" }, { status: 403 });
   const { id, status } = await request.json();
   if (!id || !["ACCEPTED", "REJECTED"].includes(status)) return NextResponse.json({ error: "A valid request and response are required" }, { status: 400 });
   const existing = await prisma.guarantorRequest.findFirst({ where: { id, guarantorId: user.id } });

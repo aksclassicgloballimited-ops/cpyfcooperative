@@ -68,7 +68,7 @@ export async function POST(request: Request) {
           membership: {
             create: {
               category,
-              membershipNo: `CPYF-${Date.now()}`,
+              // Membership numbers are assigned manually by the management on approval.
               weeklyTarget,
             },
           },
@@ -115,30 +115,37 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const { userId, status, role, reason, membershipNo: rawMembershipNo, ...profile } = await request.json();
+    const { userId, status, role, reason, grade, membershipNo: rawMembershipNo, ...profile } = await request.json();
     const membershipNo = typeof rawMembershipNo === "string" ? rawMembershipNo.trim() : "";
-    if (!userId || (!status && !role && !membershipNo && !Object.keys(profile).length)) {
+    if (!userId || (!status && !role && !membershipNo && !grade && !Object.keys(profile).length)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
     if (role && !["PRESIDENT", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
     if (Object.keys(profile).length && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can correct member profile details" }, { status: 403 });
+    if (grade && !["ACTIVE", "SILVER", "GOLDEN"].includes(grade)) return NextResponse.json({ error: "Invalid membership category" }, { status: 400 });
+    if (grade && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can upgrade or change member categories" }, { status: 403 });
+    const existingMembership = await prisma.membership.findUnique({ where: { userId }, select: { membershipNo: true, grade: true } });
+    if (!existingMembership) return NextResponse.json({ error: "Membership record not found" }, { status: 404 });
+    if (status === "ACTIVE" && !existingMembership.membershipNo && !membershipNo) return NextResponse.json({ error: "Enter a membership number to approve this member" }, { status: 400 });
     if (membershipNo) {
-      if (!["SUPER_ADMIN", "PRESIDENT", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only a President or Membership Officer can edit membership numbers" }, { status: 403 });
+      // Anyone allowed to approve members may assign the first number; later edits are restricted.
+      if (existingMembership.membershipNo && !["SUPER_ADMIN", "PRESIDENT", "MEMBERSHIP_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only a President or Membership Officer can edit membership numbers" }, { status: 403 });
       const taken = await prisma.membership.findFirst({ where: { membershipNo, NOT: { userId } } });
       if (taken) return NextResponse.json({ error: "That membership number is already in use" }, { status: 409 });
     }
     if (status && !["ACTIVE", "REJECTED", "SUSPENDED", "PENDING"].includes(status)) return NextResponse.json({ error: "Invalid membership status" }, { status: 400 });
     const member = await prisma.$transaction(async (tx) => {
-      const updated = await tx.membership.update({ where: { userId }, data: { ...(status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}), ...(membershipNo ? { membershipNo } : {}) }, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
+      const updated = await tx.membership.update({ where: { userId }, data: { ...(status ? { status, joinedAt: status === "ACTIVE" ? new Date() : undefined } : {}), ...(membershipNo ? { membershipNo } : {}), ...(grade ? { grade, gradeLocked: true } : {}) }, include: { user: { select: { firstName: true, lastName: true, email: true } } } });
       if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "email", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string").map(([key, value]) => [key, key === "email" ? String(value).trim().toLowerCase() : String(value).trim()])) } });
-      if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.` } });
-      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, newValue: JSON.stringify({ status, role, membershipNo, profile }), reason: reason || "Member record updated" } });
+      if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? `Your membership application has been approved.${updated.membershipNo ? ` Your membership number is ${updated.membershipNo}.` : ""}` : `Your membership status is now ${status.toLowerCase()}.` } });
+      if (grade) await tx.notification.create({ data: { userId, title: "Membership category updated", body: `Your membership category is now ${grade.charAt(0)}${grade.slice(1).toLowerCase()}.` } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : grade ? "MEMBER_GRADE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, previousValue: grade ? existingMembership.grade : undefined, newValue: JSON.stringify({ status, role, membershipNo, grade, profile }), reason: reason || "Member record updated" } });
       return updated;
     });
     if (status) {
       const title = status === "ACTIVE" ? "Registration approved" : "Membership application update";
-      const body = status === "ACTIVE" ? "Your membership application has been approved." : `Your membership status is now ${status.toLowerCase()}.`;
+      const body = status === "ACTIVE" ? `Your membership application has been approved.${member.membershipNo ? ` Your membership number is ${member.membershipNo}.` : ""}` : `Your membership status is now ${status.toLowerCase()}.`;
       await sendPushNotification(userId, { title, body });
     }
     return NextResponse.json({ member }, { status: 200 });

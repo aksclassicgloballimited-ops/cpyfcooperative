@@ -1,3 +1,4 @@
+import { isApprovedMember } from "@/lib/membership";
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
+  if (!(await isApprovedMember(user.id))) return NextResponse.json({ error: "Your membership has not been approved yet" }, { status: 403 });
   const form = await request.formData();
   const amount = Number(form.get("amount"));
   const transactionNo = String(form.get("transactionNo") || "").trim();
@@ -53,7 +55,7 @@ export async function PUT(request: Request) {
     if (body.status === "APPROVED") {
       const membership = await tx.membership.findUnique({ where: { userId: payment.userId } });
       if (membership) {
-        const levyResult = await applyDevelopmentLevy(tx, { userId: payment.userId, membershipNo: membership.membershipNo, category: membership.category, grossAmount: payment.amount, at: payment.createdAt, savingsPaymentId: payment.id });
+        const levyResult = await applyDevelopmentLevy(tx, { userId: payment.userId, membershipNo: membership.membershipNo ?? "", category: membership.category, grossAmount: payment.amount, at: payment.createdAt, savingsPaymentId: payment.id });
         levyAmount = levyResult.levyAmount;
         netAmount = levyResult.netAmount;
       }

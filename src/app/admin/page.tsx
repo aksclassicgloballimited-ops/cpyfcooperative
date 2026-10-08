@@ -221,6 +221,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-wrap gap-2">
             {isSuperAdmin && <a href="/admin/staff" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Staff Accounts</a>}
             {canViewDevelopmentLevy && <a href="/admin/development-levy" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Development Levy</a>}
+            {(currentRole === 'SUPER_ADMIN' || currentRole === 'FINANCE_OFFICER') && <a href="/admin/loan-access" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Access</a>}
             {canViewSettings && <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>}
             {canViewLoans && <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>}
             {canViewMembers && <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>}

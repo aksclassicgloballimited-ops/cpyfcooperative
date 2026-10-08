@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   if (process.env.DATABASE_URL && user.membership?.status === "ACTIVE" && joinedAt) {
     const configs = await prisma.membershipCategoryConfig.findMany();
     const automatic = configs.some((config) => config.automaticClassification);
-    if (automatic) {
+    if (automatic && !("gradeLocked" in user.membership && user.membership.gradeLocked)) {
       const years = (Date.now() - joinedAt.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       const desired = years >= 7 ? MembershipGrade.GOLDEN : years >= 2 ? MembershipGrade.SILVER : MembershipGrade.ACTIVE;
       if (desired !== user.membership.grade) {

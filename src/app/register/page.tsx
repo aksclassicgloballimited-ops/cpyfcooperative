@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
@@ -75,7 +75,7 @@ function RegistrationForm() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Registration failed');
       sessionStorage.removeItem('cpyif-registration-draft');
-      window.location.href = `/payment?membershipNo=${encodeURIComponent(result.membershipNo ?? '')}`;
+      window.location.href = '/payment';
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Registration failed');
       setSubmitting(false);
@@ -107,15 +107,15 @@ function RegistrationForm() {
           </Section>
           <Section title="Emergency Information">
             <Field name="emergencyName" label="Emergency Contact Name" required /><Field name="emergencyPhone" label="Emergency Contact Phone" required />
-            <Field name="emergencyRelationship" label="Relationship" required />
+            <Field name="emergencyRelationship" label="Relationship" required /><Field name="emergencyAltPhone" label="Alternative Phone Number (optional)" /><Field name="emergencyAltEmail" label="Email / Gmail (optional)" type="email" />
           </Section>
-          <Section title="Nominee Information">
+          <Section title="Nominee Information" note="Your nominee is the person who can claim your savings when the need arises.">
             <Field name="nomineeName" label="Nominee Name" required /><Field name="nomineePhone" label="Nominee Phone" required />
-            <Field name="nomineeRelationship" label="Relationship" required /><Field name="nomineeAddress" label="Nominee Address" required full />
+            <Field name="nomineeRelationship" label="Relationship" required /><Field name="nomineeAltPhone" label="Alternative Phone Number (optional)" /><Field name="nomineeAltEmail" label="Email / Gmail (optional)" type="email" /><Field name="nomineeAddress" label="Nominee Address" required full />
           </Section>
           <Section title="Account Information">
-            <Field name="password" label="Password" type="password" required /><Field name="confirmPassword" label="Confirm Password" type="password" required />
-            <div className="grid gap-2 text-sm"><label className="font-semibold">Membership plan</label><div className="rounded-xl bg-violet-50 px-3 py-2.5 font-semibold">{category === 'APPEARANCE' ? 'Appearance Member â€” N2,500 weekly minimum' : 'Non-Appearance Member â€” N3,000 weekly minimum'}</div></div>
+            <Field name="referralCode" label="Referral Code (optional)" /><Field name="password" label="Password" type="password" required /><Field name="confirmPassword" label="Confirm Password" type="password" required />
+            <div className="grid gap-2 text-sm"><label className="font-semibold">Membership plan</label><div className="rounded-xl bg-violet-50 px-3 py-2.5 font-semibold">{category === 'APPEARANCE' ? 'Appearance Member - N2,500 weekly minimum' : 'Non-Appearance Member - N3,000 weekly minimum'}</div></div>
           </Section>
           <Section title="Required Documents">
             <FileField name="passportPhoto" label="Passport photograph (maximum 25 KB)" />
@@ -133,8 +133,8 @@ function RegistrationForm() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="rounded-[1.5rem] bg-white p-5 shadow-sm sm:p-7"><h2 className="mb-5 text-xl font-bold text-[#4C1D95]">{title}</h2><div className="grid gap-4 sm:grid-cols-2">{children}</div></section>;
+function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return <section className="rounded-[1.5rem] bg-white p-5 shadow-sm sm:p-7"><h2 className="text-xl font-bold text-[#4C1D95]">{title}</h2>{note && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">{note}</p>}  <div className="mt-5 grid gap-4 sm:grid-cols-2">{children}</div></section>;
 }
 function Field({ name, label, type = 'text', required = false, full = false }: { name: string; label: string; type?: string; required?: boolean; full?: boolean }) {
   return <label className={`grid gap-2 text-sm font-semibold ${full ? 'sm:col-span-2' : ''}`}>{label}<input name={name} type={type} required={required} className={inputClass} /></label>;

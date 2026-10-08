@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+const optionalPhone = z.string().trim().min(7).optional().or(z.literal("").transform(() => undefined));
+const optionalEmail = z.string().trim().email().optional().or(z.literal("").transform(() => undefined));
+const optionalCode = z.string().trim().max(40).optional().or(z.literal("").transform(() => undefined));
+
 export const registrationSchema = z.object({
   firstName: z.string().trim().min(2),
   lastName: z.string().trim().min(2),
@@ -19,10 +23,15 @@ export const registrationSchema = z.object({
   emergencyName: z.string().trim().min(2),
   emergencyPhone: z.string().trim().min(7),
   emergencyRelationship: z.string().trim().min(2),
+  emergencyAltPhone: optionalPhone,
+  emergencyAltEmail: optionalEmail,
   nomineeName: z.string().trim().min(2),
   nomineePhone: z.string().trim().min(7),
   nomineeRelationship: z.string().trim().min(2),
   nomineeAddress: z.string().trim().min(3),
+  nomineeAltPhone: optionalPhone,
+  nomineeAltEmail: optionalEmail,
+  referralCode: optionalCode,
   passportPhoto: z.string().min(1),
   identificationDocument: z.string().min(1),
   termsAccepted: z.literal("true"),

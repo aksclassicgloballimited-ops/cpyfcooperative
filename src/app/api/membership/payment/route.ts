@@ -14,6 +14,6 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({
-    message: "Payment marked for review. Your membership remains pending until executive approval.",
+    message: "Your registration is under review by the management. Once your payment is verified and your membership is approved, you will receive your membership number. Please check back later.",
   });
 }

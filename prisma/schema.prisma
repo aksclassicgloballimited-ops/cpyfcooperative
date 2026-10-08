@@ -90,6 +90,11 @@ model User {
   nomineePhone String?
   nomineeRelationship String?
   nomineeAddress String?
+  emergencyAltPhone String?
+  emergencyAltEmail String?
+  nomineeAltPhone String?
+  nomineeAltEmail String?
+  referralCode String?
   passportPhoto String?
   identificationDocument String?
   termsAcceptedAt DateTime?
@@ -140,9 +145,14 @@ model Membership {
   category     MembershipCategory
   grade        MembershipGrade    @default(ACTIVE)
   status       MembershipStatus   @default(PENDING)
-  membershipNo String             @unique
+  membershipNo String?            @unique
   weeklyTarget Float
   paymentSubmittedAt DateTime?
+  gradeLocked  Boolean            @default(false)
+  loanAccess   String             @default("AUTO")
+  loanAccessReason String?
+  loanAccessUpdatedBy String?
+  loanAccessUpdatedAt DateTime?
   joinedAt     DateTime?
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   shares       ShareHolding[]

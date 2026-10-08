@@ -85,10 +85,15 @@ export async function POST(request: Request) {
       if (!membership || membership.status !== "ACTIVE") {
         return NextResponse.json({ error: "Only approved active members may apply for a loan" }, { status: 403 });
       }
+      if (membership.loanAccess === "DEACTIVATED") {
+        return NextResponse.json({ error: `Your loan access has been deactivated${membership.loanAccessReason ? `: ${membership.loanAccessReason}` : ""}. Please contact the management.` }, { status: 403 });
+      }
+      // A Super Administrator override activates loans for a member who does not meet the usual eligibility rules.
+      const eligibilityOverride = membership.loanAccess === "OVERRIDE";
       const category = await getCategoryConfig(membership.grade);
       const joinedAt = membership.joinedAt ?? new Date();
       const membershipMonths = Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
-      if (membershipMonths < category.minMembershipMonths) {
+      if (!eligibilityOverride && membershipMonths < category.minMembershipMonths) {
         return NextResponse.json({ error: `Loan applications become available after ${category.minMembershipMonths} months of membership` }, { status: 403 });
       }
       const savings = await prisma.transaction.aggregate({
@@ -96,7 +101,7 @@ export async function POST(request: Request) {
         where: { userId: sessionUser.id, type: "SAVINGS", status: "POSTED", reversedAt: null },
       });
       const maximum = Number(savings._sum.amount || 0) * category.loanMultiplier;
-      if (parsed.data.amount > maximum) {
+      if (!eligibilityOverride && parsed.data.amount > maximum) {
         return NextResponse.json({ error: `Your ${category.displayName} limit is ₦${maximum.toLocaleString()}` }, { status: 400 });
       }
       const product = parsed.data.loanProductId
@@ -113,7 +118,7 @@ export async function POST(request: Request) {
       if (parsed.data.guarantorMembershipNo) {
         const candidate = await prisma.membership.findUnique({ where: { membershipNo: parsed.data.guarantorMembershipNo }, select: { userId: true, membershipNo: true, status: true, joinedAt: true } });
         const months = candidate?.joinedAt ? Math.floor((Date.now() - candidate.joinedAt.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)) : 0;
-        if (!candidate || candidate.status !== "ACTIVE" || candidate.userId === sessionUser.id || months < 6) {
+        if (!candidate || !candidate.membershipNo || candidate.status !== "ACTIVE" || candidate.userId === sessionUser.id || months < 6) {
           return NextResponse.json({ error: "The guarantor must be an active cooperative member for at least 6 months" }, { status: 400 });
         }
         guarantor = { id: candidate.userId, membershipNo: candidate.membershipNo };

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
 type Member = Record<string, string | null | undefined> & {
-  membership?: { membershipNo: string; category: string; grade: string; status: string; weeklyTarget: number; joinedAt?: string | null } | null;
+  membership?: { membershipNo: string | null; category: string; grade: string; status: string; weeklyTarget: number; joinedAt?: string | null } | null;
 };
 
 const dateText = (value?: string | null) => (value ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—');
@@ -45,6 +45,7 @@ export default function RegistrationFormPage() {
         ['Nationality', member.nationality || '—'],
         ['Occupation', member.occupation || '—'],
         ['Income range', member.incomeRange || '—'],
+        ['Referral code', member.referralCode || '—'],
       ],
     },
     {
@@ -65,6 +66,8 @@ export default function RegistrationFormPage() {
         ['Name', member.emergencyName || '—'],
         ['Phone', member.emergencyPhone || '—'],
         ['Relationship', member.emergencyRelationship || '—'],
+        ['Alternative phone', member.emergencyAltPhone || '—'],
+        ['Alternative email', member.emergencyAltEmail || '—'],
       ],
     },
     {
@@ -73,6 +76,8 @@ export default function RegistrationFormPage() {
         ['Name', member.nomineeName || '—'],
         ['Phone', member.nomineePhone || '—'],
         ['Relationship', member.nomineeRelationship || '—'],
+        ['Alternative phone', member.nomineeAltPhone || '—'],
+        ['Alternative email', member.nomineeAltEmail || '—'],
         ['Address', member.nomineeAddress || '—'],
       ],
     },

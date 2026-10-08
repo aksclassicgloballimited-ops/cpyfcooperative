@@ -54,3 +54,8 @@ export function membershipLabel(grade?: string | null) {
   if (grade === "GOLDEN") return "GOLDEN MEMBER";
   return "ACTIVE MEMBER";
 }
+
+export async function isApprovedMember(userId: string) {
+  const membership = await prisma.membership.findUnique({ where: { userId }, select: { status: true } });
+  return membership?.status === "ACTIVE";
+}
