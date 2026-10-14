@@ -54,19 +54,26 @@ export default function AdminDashboardPage() {
   const [shareRequests, setShareRequests] = useState<ShareRequest[]>([]);
   const [currentRole, setCurrentRole] = useState('');
 
-  const loadAdminData = async () => {
+  const loadAdminData = async (role = currentRole) => {
     try {
+      const canLoadDirectory = role === 'SUPER_ADMIN' || role === 'EXECUTIVE' || role === 'MEMBERSHIP_OFFICER';
       const [membersResponse, loansResponse] = await Promise.all([
-        fetch('/api/members', { cache: 'no-store' }),
-        fetch('/api/loans?scope=all', { cache: 'no-store' }),
+        canLoadDirectory || role === 'FINANCE_OFFICER'
+          ? fetch(role === 'FINANCE_OFFICER' ? '/api/members?scope=finance-select' : '/api/members', { cache: 'no-store' })
+          : Promise.resolve(new Response(null, { status: 403 })),
+        can(role, 'loans')
+          ? fetch('/api/loans?scope=all', { cache: 'no-store' })
+          : Promise.resolve(new Response(null, { status: 403 })),
       ]);
       const statsResponse = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       if (statsResponse.ok) setStats((await statsResponse.json()).statistics ?? {});
       setStatsLoaded(true);
-      const paymentsResponse = await fetch('/api/savings/payments?scope=all', { cache: 'no-store' });
-      if (paymentsResponse.ok) setSavingsPayments((await paymentsResponse.json()).payments ?? []);
-      const sharesResponse = await fetch('/api/shares/requests?scope=all', { cache: 'no-store' });
-      if (sharesResponse.ok) setShareRequests((await sharesResponse.json()).requests ?? []);
+      if (role === 'SUPER_ADMIN' || role === 'EXECUTIVE') {
+        const paymentsResponse = await fetch('/api/savings/payments?scope=all', { cache: 'no-store' });
+        if (paymentsResponse.ok) setSavingsPayments((await paymentsResponse.json()).payments ?? []);
+        const sharesResponse = await fetch('/api/shares/requests?scope=all', { cache: 'no-store' });
+        if (sharesResponse.ok) setShareRequests((await sharesResponse.json()).requests ?? []);
+      }
 
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
@@ -101,7 +108,7 @@ export default function AdminDashboardPage() {
         }
 
         setCurrentRole(data.user.role);
-        await loadAdminData();
+        await loadAdminData(data.user.role);
       } catch {
         router.replace('/#portal');
       }
@@ -132,10 +139,15 @@ export default function AdminDashboardPage() {
   };
 
   const handleMemberStatus = async (userId: string, status: 'ACTIVE' | 'REJECTED') => {
+    const member = members.find((item) => item.id === userId);
+    const membershipNo = currentRole === 'MEMBERSHIP_OFFICER' && status === 'ACTIVE' && !member?.membership?.membershipNo
+      ? window.prompt(`Enter the membership number to approve ${member?.firstName || 'this member'}`)
+      : undefined;
+    if (membershipNo !== undefined && !membershipNo?.trim()) return;
     const response = await fetch('/api/members', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, status }),
+      body: JSON.stringify({ userId, status, ...(membershipNo ? { membershipNo: membershipNo.trim() } : {}) }),
     });
     if (response.ok) await loadAdminData();
   };
@@ -195,14 +207,17 @@ export default function AdminDashboardPage() {
   const queue = loanQueue;
 
   const summaryCards = [
-  { label: 'Total Members', value: String(stats.totalMembers ?? 0), tone: 'bg-violet-50 text-[#6A11CB]' },
-  { label: 'Active Members', value: `${stats.activeMembers || 0} (${stats.activeAppearance || 0} app. / ${stats.activeNonAppearance || 0} non-app.)`, tone: 'bg-emerald-50 text-emerald-600' },
-  { label: 'Silver Members', value: `${stats.silverMembers || 0} (${stats.silverAppearance || 0} app. / ${stats.silverNonAppearance || 0} non-app.)`, tone: 'bg-slate-100 text-slate-700' },
-  { label: 'Golden Members', value: `${stats.goldenMembers || 0} (${stats.goldenAppearance || 0} app. / ${stats.goldenNonAppearance || 0} non-app.)`, tone: 'bg-amber-50 text-amber-600' },
-  { label: 'Total Savings', value: `₦${Number(stats.totalSavings || 0).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600' },
-  { label: 'Total Shares', value: `${stats.totalShares || 0} units`, tone: 'bg-indigo-50 text-indigo-600' },
-  { label: 'Outstanding Loans', value: `₦${Number(stats.outstandingLoans || 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600' },
-  ];
+    { label: 'Total Members', value: String(stats.totalMembers ?? 0), tone: 'bg-violet-50 text-[#6A11CB]', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'MEMBERSHIP_OFFICER', 'SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Appearance Members', value: String(stats.totalAppearance ?? 0), tone: 'bg-emerald-50 text-emerald-600', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'MEMBERSHIP_OFFICER'].includes(currentRole) },
+    { label: 'Non-Appearance Members', value: String(stats.totalNonAppearance ?? 0), tone: 'bg-slate-100 text-slate-700', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'MEMBERSHIP_OFFICER'].includes(currentRole) },
+    { label: 'Active Members', value: `${stats.activeMembers || 0} (${stats.activeAppearance || 0} app. / ${stats.activeNonAppearance || 0} non-app.)`, tone: 'bg-emerald-50 text-emerald-600', visible: ['SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Silver Members', value: `${stats.silverMembers || 0} (${stats.silverAppearance || 0} app. / ${stats.silverNonAppearance || 0} non-app.)`, tone: 'bg-slate-100 text-slate-700', visible: ['SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Golden Members', value: `${stats.goldenMembers || 0} (${stats.goldenAppearance || 0} app. / ${stats.goldenNonAppearance || 0} non-app.)`, tone: 'bg-amber-50 text-amber-600', visible: ['SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Total Savings', value: `₦${Number(stats.totalSavings || 0).toLocaleString()}`, tone: 'bg-sky-50 text-sky-600', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Total Development', value: `₦${Number(stats.totalDevelopment || 0).toLocaleString()}`, tone: 'bg-amber-50 text-amber-700', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Total Shares', value: `${stats.totalShares || 0} units`, tone: 'bg-indigo-50 text-indigo-600', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'MEMBERSHIP_OFFICER', 'SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+    { label: 'Outstanding Loans', value: `₦${Number(stats.outstandingLoans || 0).toLocaleString()}`, tone: 'bg-rose-50 text-rose-600', visible: ['PRESIDENT', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'SUPER_ADMIN', 'EXECUTIVE'].includes(currentRole) },
+  ].filter((card) => card.visible);
 
   const canViewMembers = can(currentRole, 'members');
   const canManageMembers = canWrite(currentRole, 'members');
@@ -226,7 +241,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-wrap gap-2">
             {isSuperAdmin && <a href="/admin/staff" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Staff Accounts</a>}
             {canViewDevelopmentLevy && <a href="/admin/development-levy" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Development Levy</a>}
-            {(currentRole === 'SUPER_ADMIN' || currentRole === 'FINANCE_OFFICER') && <a href="/admin/loan-access" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Access</a>}
+            {isSuperAdmin && <a href="/admin/loan-access" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Access</a>}
             {canViewSettings && <a href="/admin/settings" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Category Settings</a>}
             {canViewLoans && <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>}
             {canViewMembers && <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>}
@@ -260,7 +275,7 @@ export default function AdminDashboardPage() {
                     <td className="px-4 py-3 font-semibold">{member.membership?.membershipNo || '—'}</td>
                     <td className="px-4 py-3">{member.membership?.paymentSubmittedAt ? 'Submitted' : 'Not submitted'}</td>
                     <td className="px-4 py-3"><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold">{member.membership?.status || 'PENDING'}</span></td>
-                    <td className="px-4 py-3">{canManageMembers && member.membership?.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => handleMemberStatus(member.id, 'ACTIVE')} className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => handleMemberStatus(member.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td>
+                    <td className="px-4 py-3">{canManageMembers && member.membership?.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => handleMemberStatus(member.id, 'ACTIVE')} className="rounded-full bg-[#6A11CB] px-3 py-1 text-xs font-bold text-white">Approve</button>{currentRole !== 'MEMBERSHIP_OFFICER' && <button type="button" onClick={() => handleMemberStatus(member.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button>}</div>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -268,12 +283,12 @@ export default function AdminDashboardPage() {
           </div>
         </section>}
 
-        {canViewFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+        {(currentRole === 'SUPER_ADMIN' || currentRole === 'EXECUTIVE') && canViewFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between"><div><h2 className="text-2xl font-bold">Savings Payment Approvals</h2><p className="mt-1 text-sm text-slate-600">Approved payments are the only payments added to member savings.</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{savingsPayments.filter((payment) => payment.status === 'PENDING').length} pending</span></div>
           <div className="overflow-x-auto rounded-xl border border-violet-100"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead><tbody>{savingsPayments.map((payment) => <tr key={payment.id} className="border-t border-violet-100"><td className="px-4 py-3"><b>{payment.user?.firstName} {payment.user?.lastName}</b><span className="block text-xs text-slate-500">{payment.user?.membership?.membershipNo}</span></td><td className="px-4 py-3 font-bold">₦{payment.amount.toLocaleString()}</td><td className="px-4 py-3">{payment.transactionNo || 'Not provided'}</td><td className="px-4 py-3">{payment.receipt ? <a href={payment.receipt} download={`receipt-${payment.id}`} className="font-bold text-[#6A11CB]">View receipt</a> : '—'}</td><td className="px-4 py-3">{payment.status}</td><td className="px-4 py-3">{canManageFinance && payment.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'APPROVED')} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => reviewSavingsPayment(payment.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td></tr>)}</tbody></table>{!savingsPayments.length && <p className="p-8 text-center text-sm text-slate-500">No savings payments have been submitted.</p>}</div>
         </section>}
 
-        {canViewFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
+        {(currentRole === 'SUPER_ADMIN' || currentRole === 'EXECUTIVE') && canViewFinance && <section className="mt-8 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between"><div><h2 className="text-2xl font-bold">Share Purchase Approvals</h2><p className="mt-1 text-sm text-slate-600">Share units are added to a member only after the payment is approved here.</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{shareRequests.filter((item) => item.status === 'PENDING').length} pending</span></div>
           <div className="overflow-x-auto rounded-xl border border-violet-100"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-violet-50 text-[#4C1D95]"><tr><th className="px-4 py-3">Member</th><th className="px-4 py-3">Units</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead><tbody>{shareRequests.map((item) => <tr key={item.id} className="border-t border-violet-100"><td className="px-4 py-3"><b>{item.user?.firstName} {item.user?.lastName}</b><span className="block text-xs text-slate-500">{item.user?.membership?.membershipNo}</span></td><td className="px-4 py-3 font-bold">{item.units}</td><td className="px-4 py-3">₦{item.totalAmount.toLocaleString()}</td><td className="px-4 py-3">{item.transactionNo || 'Not provided'}</td><td className="px-4 py-3">{item.receipt ? <a href={item.receipt} download={`share-receipt-${item.id}`} className="font-bold text-[#6A11CB]">View receipt</a> : '—'}</td><td className="px-4 py-3">{item.status}</td><td className="px-4 py-3">{canManageFinance && item.status === 'PENDING' && <div className="flex gap-2"><button type="button" onClick={() => reviewShareRequest(item.id, 'APPROVED')} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button><button type="button" onClick={() => reviewShareRequest(item.id, 'REJECTED')} className="rounded-full border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600">Reject</button></div>}</td></tr>)}</tbody></table>{!shareRequests.length && <p className="p-8 text-center text-sm text-slate-500">No share purchases have been submitted.</p>}</div>
         </section>}
@@ -283,15 +298,15 @@ export default function AdminDashboardPage() {
               <h2 className="text-2xl font-bold">Financial Controls</h2>
               <p className="mt-1 text-sm text-slate-600">Every adjustment is recorded with the acting administrator and a timestamp.</p>
             </div>
-            <a href="/api/savings?scope=all&format=csv" className="rounded-full border border-violet-200 px-4 py-2 text-sm font-bold text-[#6A11CB]">Export Savings CSV</a>
+            <a href="/api/admin/reports?type=transactions&format=csv" className="rounded-full border border-violet-200 px-4 py-2 text-sm font-bold text-[#6A11CB]">Export Financial Transactions CSV</a>
           </div>
           {financialMessage && <p className="mt-4 rounded-xl bg-violet-50 px-4 py-3 text-sm font-semibold text-[#4C1D95]">{financialMessage}</p>}
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
             <form onSubmit={addSavings} className="rounded-2xl bg-violet-50 p-5">
-              <h3 className="font-bold">Add Savings{isSuperAdmin ? ' / Reduce' : ''}</h3>
+              <h3 className="font-bold">Add Savings{['SUPER_ADMIN', 'FINANCE_OFFICER'].includes(currentRole) ? ' / Reduce' : ''}</h3>
               <div className="mt-4 grid gap-3">
                 <select name="userId" required className="rounded-xl border border-violet-200 bg-white px-3 py-2"><option value="">Select member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.firstName} {member.lastName}</option>)}</select>
-                <input name="amount" required type="number" {...(isSuperAdmin ? {} : { min: '1' })} placeholder={isSuperAdmin ? 'Amount (₦, use negative to reduce)' : 'Amount (₦)'} className="rounded-xl border border-violet-200 px-3 py-2" />
+                <input name="amount" required type="number" {...(['SUPER_ADMIN', 'FINANCE_OFFICER'].includes(currentRole) ? {} : { min: '1' })} placeholder={['SUPER_ADMIN', 'FINANCE_OFFICER'].includes(currentRole) ? 'Amount (₦, use negative to reduce)' : 'Amount (₦)'} className="rounded-xl border border-violet-200 px-3 py-2" />
                 <input name="description" required placeholder="Description" className="rounded-xl border border-violet-200 px-3 py-2" />
                 <button className="rounded-full bg-[#6A11CB] px-4 py-2 font-bold text-white">Post Savings</button>
               </div>
@@ -370,7 +385,7 @@ export default function AdminDashboardPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {canManageLoans && <div className="flex gap-2">
+                          {canManageLoans && ['SUBMITTED', 'UNDER_REVIEW', 'PENDING'].includes(item.status) && <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleReview(item.id, 'APPROVED')}

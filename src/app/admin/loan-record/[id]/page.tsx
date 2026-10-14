@@ -70,7 +70,7 @@ export default function LoanRecordPage() {
     <main className="min-h-screen bg-slate-100 p-4 text-slate-900 print:bg-white print:p-0">
       <style>{`@media print { @page { size: A4; margin: 14mm; } .no-print { display: none !important; } }`}</style>
       <div className="no-print mx-auto mb-4 flex max-w-3xl justify-between">
-        <Link href="/admin/loans" className="text-sm font-bold text-[#4C1D95]">&larr; Back to loans</Link>
+        <Link href="/admin/reports" className="text-sm font-bold text-[#4C1D95]">&larr; Back to loan reports</Link>
         <button type="button" onClick={() => window.print()} className="rounded-full bg-[#6A11CB] px-5 py-2 text-sm font-bold text-white">Download PDF / Print</button>
       </div>
       <article className="mx-auto max-w-3xl bg-white p-8 shadow print:max-w-none print:p-0 print:shadow-none">
@@ -120,7 +120,7 @@ export default function LoanRecordPage() {
           <h2 className="bg-violet-100 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-[#4C1D95]">Status History</h2>
           {(loan.statusHistory || []).map((item: Loan) => (
             <div key={item.id} className="border-b border-slate-200 py-1.5">
-              <b>{item.toStatus}</b> · {dateText(item.createdAt)}{item.reason ? ` · ${item.reason}` : ''}
+              <b>{item.toStatus}</b> · {item.changedByRole || 'Staff'} · {dateText(item.createdAt)}{item.reason ? ` · ${item.reason}` : ''}
             </div>
           ))}
         </section>

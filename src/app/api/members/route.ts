@@ -14,6 +14,15 @@ export async function GET(request: Request) {
   }
 
   if (!can(sessionUser.role, "members")) {
+    const { searchParams } = new URL(request.url);
+    if (sessionUser.role === "FINANCE_OFFICER" && searchParams.get("scope") === "finance-select") {
+      const members = await prisma.user.findMany({
+        where: { role: "MEMBER", membership: { isNot: null } },
+        select: { id: true, firstName: true, lastName: true, membership: { select: { id: true } } },
+        orderBy: { lastName: "asc" },
+      });
+      return NextResponse.json({ members }, { status: 200 });
+    }
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
@@ -120,13 +129,22 @@ export async function PUT(request: Request) {
     if (!userId || (!status && !role && !membershipNo && !grade && !Object.keys(profile).length)) {
       return NextResponse.json({ error: "A valid userId and membership status are required" }, { status: 400 });
     }
+    if (sessionUser.role === "MEMBERSHIP_OFFICER" && (status !== "ACTIVE" || role || grade || Object.keys(profile).length)) {
+      return NextResponse.json({ error: "Membership Officers may only approve member applications; profile, role, grade, suspension, and rejection changes are not permitted" }, { status: 403 });
+    }
     if (role && !["PRESIDENT", "EXECUTIVE", "SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER", "MEMBERSHIP_OFFICER", "AUDITOR", "MEMBER"].includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     if (role && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can change roles" }, { status: 403 });
     if (Object.keys(profile).length && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can correct member profile details" }, { status: 403 });
     if (grade && !["ACTIVE", "SILVER", "GOLDEN"].includes(grade)) return NextResponse.json({ error: "Invalid membership category" }, { status: 400 });
     if (grade && sessionUser.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can upgrade or change member categories" }, { status: 403 });
-    const existingMembership = await prisma.membership.findUnique({ where: { userId }, select: { membershipNo: true, grade: true } });
+    const existingMembership = await prisma.membership.findUnique({ where: { userId }, select: { membershipNo: true, grade: true, status: true } });
     if (!existingMembership) return NextResponse.json({ error: "Membership record not found" }, { status: 404 });
+    if (sessionUser.role === "MEMBERSHIP_OFFICER" && existingMembership.status !== "PENDING") {
+      return NextResponse.json({ error: "Membership Officers may approve pending applications only" }, { status: 403 });
+    }
+    if (sessionUser.role === "MEMBERSHIP_OFFICER" && existingMembership.membershipNo && membershipNo && membershipNo !== existingMembership.membershipNo) {
+      return NextResponse.json({ error: "Membership Officers cannot change an assigned membership number" }, { status: 403 });
+    }
     if (status === "ACTIVE" && !existingMembership.membershipNo && !membershipNo) return NextResponse.json({ error: "Enter a membership number to approve this member" }, { status: 400 });
     if (membershipNo) {
       // Anyone allowed to approve members may assign the first number; later edits are restricted.
@@ -140,7 +158,7 @@ export async function PUT(request: Request) {
       if (role || Object.keys(profile).length) await tx.user.update({ where: { id: userId }, data: { ...(role ? { role } : {}), ...Object.fromEntries(Object.entries(profile).filter(([key, value]) => ["firstName", "lastName", "email", "phone", "occupation", "incomeRange", "address"].includes(key) && typeof value === "string").map(([key, value]) => [key, key === "email" ? String(value).trim().toLowerCase() : String(value).trim()])) } });
       if (status) await tx.notification.create({ data: { userId, title: status === "ACTIVE" ? "Registration approved" : "Membership application update", body: status === "ACTIVE" ? `Your membership application has been approved.${updated.membershipNo ? ` Your membership number is ${updated.membershipNo}.` : ""}` : `Your membership status is now ${status.toLowerCase()}.` } });
       if (grade) await tx.notification.create({ data: { userId, title: "Membership category updated", body: `Your membership category is now ${grade.charAt(0)}${grade.slice(1).toLowerCase()}.` } });
-      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: role ? "ROLE_CHANGE" : grade ? "MEMBER_GRADE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, previousValue: grade ? existingMembership.grade : undefined, newValue: JSON.stringify({ status, role, membershipNo, grade, profile }), reason: reason || "Member record updated" } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, actorRole: sessionUser.role, action: role ? "ROLE_CHANGE" : grade ? "MEMBER_GRADE_CHANGE" : membershipNo ? "MEMBERSHIP_NUMBER_CHANGE" : "MEMBERSHIP_UPDATE", entityType: "User", entityId: userId, previousValue: grade ? existingMembership.grade : undefined, newValue: JSON.stringify({ status, role, membershipNo, grade, profile }), reason: reason || "Member record updated" } });
       return updated;
     });
     if (status) {
@@ -166,7 +184,7 @@ export async function DELETE(request: Request) {
   try {
     await prisma.$transaction(async (tx) => {
       await tx.user.delete({ where: { id: userId } });
-      await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "MEMBER_DELETED", entityType: "User", entityId: userId, previousValue: target.email, newValue: "DELETED", reason: `Deleted member ${target.firstName} ${target.lastName} (${target.email})` } });
+      await tx.auditEntry.create({ data: { actorId: sessionUser.id, actorRole: sessionUser.role, action: "MEMBER_DELETED", entityType: "User", entityId: userId, previousValue: target.email, newValue: "DELETED", reason: `Deleted member ${target.firstName} ${target.lastName} (${target.email})` } });
     });
     return NextResponse.json({ message: "Member deleted" });
   } catch (error) {

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { can, canWrite } from "@/lib/permissions";
 import { sendPushNotification } from "@/lib/push";
 
 const SHARE_UNIT_PRICE = 10000;
@@ -11,7 +10,7 @@ export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   const all = new URL(request.url).searchParams.get("scope") === "all";
-  if (all && !can(user.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (all && !["SUPER_ADMIN", "EXECUTIVE"].includes(user.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const requests = await prisma.sharePurchaseRequest.findMany({
     where: all ? undefined : { userId: user.id },
     include: { user: { select: { firstName: true, lastName: true, email: true, membership: { select: { membershipNo: true } } } } },
@@ -45,7 +44,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const reviewer = await getUserFromRequest(request);
-  if (!reviewer || !canWrite(reviewer.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!reviewer || !["SUPER_ADMIN", "EXECUTIVE"].includes(reviewer.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const body = await request.json();
   if (!body.id || !["APPROVED", "REJECTED"].includes(body.status)) return NextResponse.json({ error: "Request and decision are required" }, { status: 400 });
   const pending = await prisma.sharePurchaseRequest.findUnique({ where: { id: body.id } });
@@ -68,10 +67,10 @@ export async function PUT(request: Request) {
         const shareTransaction = await tx.shareTransaction.create({
           data: { membershipId: membership.id, units: pending.units, unitPrice: pending.unitPrice, type: "PURCHASE", description: "Share purchase approved", reference: `SHR-${randomUUID()}`, actorId: reviewer.id },
         });
-        await tx.auditEntry.create({ data: { actorId: reviewer.id, action: "SHARE_PURCHASE_APPROVED", entityType: "SharePurchaseRequest", entityId: pending.id, previousValue: String(holding?.units || 0), newValue: String(updated.units), reason: String(body.reason || "Payment confirmed by finance"), shareTransactionId: shareTransaction.id } });
+        await tx.auditEntry.create({ data: { actorId: reviewer.id, actorRole: reviewer.role, action: "SHARE_PURCHASE_APPROVED", entityType: "SharePurchaseRequest", entityId: pending.id, previousValue: String(holding?.units || 0), newValue: String(updated.units), reason: String(body.reason || "Payment confirmed by finance"), shareTransactionId: shareTransaction.id } });
         await tx.notification.create({ data: { userId: pending.userId, title: "Share purchase approved", body: `${pending.units} share unit(s) have been added to your account.` } });
       } else {
-        await tx.auditEntry.create({ data: { actorId: reviewer.id, action: "SHARE_PURCHASE_REJECTED", entityType: "SharePurchaseRequest", entityId: pending.id, previousValue: "PENDING", newValue: "REJECTED", reason: String(body.reason || "Payment rejected") } });
+        await tx.auditEntry.create({ data: { actorId: reviewer.id, actorRole: reviewer.role, action: "SHARE_PURCHASE_REJECTED", entityType: "SharePurchaseRequest", entityId: pending.id, previousValue: "PENDING", newValue: "REJECTED", reason: String(body.reason || "Payment rejected") } });
         await tx.notification.create({ data: { userId: pending.userId, title: "Share purchase rejected", body: `Your share purchase request was rejected. ${body.reason || ""}` } });
       }
     });

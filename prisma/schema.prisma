@@ -304,6 +304,7 @@ model LoanStatusHistory {
   fromStatus String?
   toStatus   String
   changedBy  String
+  changedByRole String?
   reason     String?
   createdAt  DateTime        @default(now())
   loan       LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
@@ -312,6 +313,7 @@ model LoanStatusHistory {
 model AuditEntry {
   id                 String            @id @default(cuid())
   actorId            String
+  actorRole          String?
   action             String
   entityType         String
   entityId           String

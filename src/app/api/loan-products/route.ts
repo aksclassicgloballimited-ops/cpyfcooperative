@@ -6,7 +6,7 @@ import { canWrite } from "@/lib/permissions";
 
 async function staff(request: Request) {
   const user = await getUserFromRequest(request);
-  return user && canWrite(user.role, "loans") ? user : null;
+  return user && ["SUPER_ADMIN", "EXECUTIVE"].includes(user.role) && canWrite(user.role, "loans") ? user : null;
 }
 
 export async function GET() {

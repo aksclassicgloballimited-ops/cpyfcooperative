@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       await tx.auditEntry.create({
         data: {
           actorId: actor.id,
+          actorRole: actor.role,
           action: amount > 0 ? "DIVIDEND_POSTED" : "DIVIDEND_CORRECTED",
           entityType: "Transaction",
           entityId: transaction.id,

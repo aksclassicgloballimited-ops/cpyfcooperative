@@ -6,7 +6,7 @@ import { sendPushNotification } from "@/lib/push";
 
 export const runtime = "nodejs";
 
-const ALLOWED_ROLES = ["SUPER_ADMIN", "FINANCE_OFFICER"];
+const ALLOWED_ROLES = ["SUPER_ADMIN"];
 
 export async function GET(request: Request) {
   const actor = await getUserFromRequest(request);
@@ -73,7 +73,7 @@ export async function PUT(request: Request) {
   await prisma.$transaction(async (tx) => {
     await tx.membership.update({ where: { userId }, data: { loanAccess, loanAccessReason: trimmedReason, loanAccessUpdatedBy: actor.id, loanAccessUpdatedAt: new Date() } });
     await tx.notification.create({ data: { userId, title: `Loan access ${label}`, body: `Your loan access has been ${label}. Reason: ${trimmedReason}` } });
-    await tx.auditEntry.create({ data: { actorId: actor.id, action: `LOAN_ACCESS_${action}`, entityType: "Membership", entityId: membership.id, previousValue: membership.loanAccess, newValue: loanAccess, reason: trimmedReason } });
+    await tx.auditEntry.create({ data: { actorId: actor.id, actorRole: actor.role, action: `LOAN_ACCESS_${action}`, entityType: "Membership", entityId: membership.id, previousValue: membership.loanAccess, newValue: loanAccess, reason: trimmedReason } });
   });
   await sendPushNotification(userId, { title: `Loan access ${label}`, body: `Reason: ${trimmedReason}`, path: "/member" }).catch(() => undefined);
 

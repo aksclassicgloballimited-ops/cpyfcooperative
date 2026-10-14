@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const scopeAll = searchParams.get("scope") === "all";
-  if (scopeAll && !can(user.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (scopeAll && !["SUPER_ADMIN", "EXECUTIVE"].includes(user.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const userId = scopeAll ? undefined : user.id;
 
   const transactions = await prisma.transaction.findMany({
@@ -40,13 +40,14 @@ export async function POST(request: Request) {
     const userId = String(body?.userId || "");
     const amount = Number(body?.amount);
     const isReduction = amount < 0;
-    if (isReduction && actor.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Only a Super Administrator can reduce a member's savings" }, { status: 403 });
+    if (isReduction && !["SUPER_ADMIN", "FINANCE_OFFICER"].includes(actor.role)) return NextResponse.json({ error: "Only the Super Administrator or Financial Officer can reduce a member's savings" }, { status: 403 });
     if (!userId || !Number.isFinite(amount) || amount === 0) return NextResponse.json({ error: "Member and a non-zero amount are required" }, { status: 400 });
     const current = await prisma.transaction.aggregate({
       _sum: { amount: true },
       where: { userId, type: "SAVINGS", status: "POSTED", reversedAt: null },
     });
     const balanceAfter = Number(current._sum.amount || 0) + amount;
+    if (balanceAfter < 0) return NextResponse.json({ error: "A savings reduction cannot exceed the member's current savings" }, { status: 400 });
     const transaction = await prisma.transaction.create({
       data: {
         userId,
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
         actorId: actor.id,
       },
     });
-    await prisma.auditEntry.create({ data: { actorId: actor.id, action: isReduction ? "SAVINGS_REDUCE" : "SAVINGS_POST", entityType: "Transaction", entityId: transaction.id, previousValue: String(current._sum.amount || 0), newValue: String(balanceAfter), reason: String(body.reason || body.description || "Savings posted"), transactionId: transaction.id } });
+    await prisma.auditEntry.create({ data: { actorId: actor.id, actorRole: actor.role, action: isReduction ? "SAVINGS_REDUCE" : "SAVINGS_POST", entityType: "Transaction", entityId: transaction.id, previousValue: String(current._sum.amount || 0), newValue: String(balanceAfter), reason: String(body.reason || body.description || "Savings posted"), transactionId: transaction.id } });
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Savings entry failed" }, { status: 500 });

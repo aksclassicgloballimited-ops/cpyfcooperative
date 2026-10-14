@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
-const ALLOWED_ROLES = ['EXECUTIVE', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'MEMBERSHIP_OFFICER', 'AUDITOR'];
+const ALLOWED_ROLES = ['PRESIDENT', 'EXECUTIVE', 'FINANCE_OFFICER', 'LOAN_OFFICER', 'MEMBERSHIP_OFFICER', 'AUDITOR'];
 
 export default function ExecutiveLoginPage() {
   const router = useRouter();

@@ -21,7 +21,7 @@ export async function PUT(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
-  if (!user || (user.role !== "PRESIDENT" && user.role !== "EXECUTIVE")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (!user || user.role !== "EXECUTIVE") return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const body = await request.json();
   if (!body.userId || !body.title || !body.body) return NextResponse.json({ error: "Member, title, and message are required" }, { status: 400 });
   const notification = await prisma.notification.create({ data: { userId: String(body.userId), title: String(body.title), body: String(body.body) } });

@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       await tx.auditEntry.create({
         data: {
           actorId: actor.id,
+          actorRole: actor.role,
           action: "STAFF_ACCOUNT_CREATED",
           entityType: "User",
           entityId: created.id,
@@ -151,6 +152,7 @@ export async function PUT(request: Request) {
       await tx.auditEntry.create({
         data: {
           actorId: actor.id,
+          actorRole: actor.role,
           action: "STAFF_ACCOUNT_UPDATED",
           entityType: "User",
           entityId: target.id,
@@ -183,7 +185,7 @@ export async function DELETE(request: Request) {
       await tx.auditEntry.updateMany({ where: { actorId: target.id }, data: { actorId: actor.id } });
       await tx.user.delete({ where: { id: target.id } });
       await tx.auditEntry.create({
-        data: { actorId: actor.id, action: "STAFF_ACCOUNT_DELETED", entityType: "User", entityId: target.id, previousValue: target.role, newValue: "DELETED", reason: `Deleted ${target.firstName} ${target.lastName} (${target.email})` },
+        data: { actorId: actor.id, actorRole: actor.role, action: "STAFF_ACCOUNT_DELETED", entityType: "User", entityId: target.id, previousValue: target.role, newValue: "DELETED", reason: `Deleted ${target.firstName} ${target.lastName} (${target.email})` },
       });
     });
     return NextResponse.json({ message: "Staff account deleted" });

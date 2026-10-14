@@ -41,10 +41,11 @@ export async function POST(request: Request) {
           actorId: actor.id,
         },
       });
-      await tx.loanStatusHistory.create({ data: { loanId, fromStatus: loan.status, toStatus: updated.status, changedBy: actor.id, reason: String(body.reason || "Repayment adjustment") } });
+      await tx.loanStatusHistory.create({ data: { loanId, fromStatus: loan.status, toStatus: updated.status, changedBy: actor.id, changedByRole: actor.role, reason: String(body.reason || "Repayment adjustment") } });
       await tx.auditEntry.create({
         data: {
           actorId: actor.id,
+          actorRole: actor.role,
           action: amount > 0 ? "LOAN_REPAYMENT_RECORDED" : "LOAN_REPAYMENT_CORRECTED",
           entityType: "LoanApplication",
           entityId: loanId,

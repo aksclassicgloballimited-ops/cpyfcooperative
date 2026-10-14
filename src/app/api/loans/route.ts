@@ -19,17 +19,9 @@ export async function GET(request: Request) {
   const includeAll = searchParams.get("scope") === "all";
 
   if (includeAll) {
-    if (!can(sessionUser.role, "loans")) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-
-    if (new URL(request.url).searchParams.get("products") === "true") {
-      return NextResponse.json({ products: await ensureLoanProducts() });
-    }
-
     const recordId = searchParams.get("id");
     if (recordId) {
-      if (!["SUPER_ADMIN", "FINANCE_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Only the Super Administrator or Financial Officer can print loan records" }, { status: 403 });
+      if (!["SUPER_ADMIN", "FINANCE_OFFICER", "LOAN_OFFICER"].includes(sessionUser.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
       const record = await prisma.loanApplication.findUnique({
         where: { id: recordId },
         include: {
@@ -39,19 +31,30 @@ export async function GET(request: Request) {
         },
       });
       if (!record) return NextResponse.json({ error: "Loan not found" }, { status: 404 });
-      if (!["APPROVED", "DISBURSED", "ACTIVE", "COMPLETED"].includes(record.status)) return NextResponse.json({ error: "A loan record can only be printed after the loan is approved" }, { status: 409 });
+      if (sessionUser.role !== "LOAN_OFFICER" && !["APPROVED", "DISBURSED", "ACTIVE", "COMPLETED"].includes(record.status)) return NextResponse.json({ error: "A loan record can only be printed after the loan is approved" }, { status: 409 });
       return NextResponse.json({ loan: record });
+    }
+
+    if (!can(sessionUser.role, "loans")) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    if (new URL(request.url).searchParams.get("products") === "true") {
+      return NextResponse.json({ products: await ensureLoanProducts() });
     }
 
     if (process.env.DATABASE_URL) {
       const loanApplications = await prisma.loanApplication.findMany({
+        where: sessionUser.role === "LOAN_OFFICER"
+          ? { status: { in: ["SUBMITTED", "UNDER_REVIEW", "PENDING", "APPROVED", "DISBURSED", "ACTIVE"] } }
+          : undefined,
         include: { user: { select: { firstName: true, lastName: true, email: true, role: true } }, guarantorRequests: { select: { id: true, status: true, guarantorMembershipNo: true, guarantor: { select: { firstName: true, lastName: true } } } } },
         orderBy: { createdAt: "desc" },
       });
       return NextResponse.json({ loans: loanApplications }, { status: 200 });
     }
 
-    const allLoans = loans.map((loan) => {
+    const allLoans = loans.filter((loan) => sessionUser.role !== "LOAN_OFFICER" || ["SUBMITTED", "UNDER_REVIEW", "PENDING", "APPROVED", "DISBURSED", "ACTIVE"].includes(loan.status)).map((loan) => {
       const applicant = users.get(loan.userId) ?? Array.from(users.values()).find((user) => user.id === loan.userId); 
       return {
         ...loan,
@@ -227,6 +230,16 @@ export async function PUT(request: Request) {
     if (!allowedStatuses.includes(normalizedStatus)) {
       return NextResponse.json({ error: "Invalid loan status" }, { status: 400 });
     }
+    if (sessionUser.role === "LOAN_OFFICER" && !["APPROVED", "REJECTED"].includes(normalizedStatus)) {
+      return NextResponse.json({ error: "Loan Officers may only review, approve, or reject loan applications" }, { status: 403 });
+    }
+    if (sessionUser.role === "LOAN_OFFICER") {
+      const application = await prisma.loanApplication.findUnique({ where: { id }, select: { status: true } });
+      if (!application) return NextResponse.json({ error: "Loan application not found" }, { status: 404 });
+      if (!["SUBMITTED", "UNDER_REVIEW", "PENDING"].includes(application.status)) {
+        return NextResponse.json({ error: "Loan Officers may only decide applications awaiting review" }, { status: 409 });
+      }
+    }
 
     const reasonText = typeof body.reason === "string" ? body.reason.trim() : "";
     if (normalizedStatus === "REJECTED" && reasonText.length < 3) {
@@ -260,8 +273,8 @@ export async function PUT(request: Request) {
             reviewedAt: new Date(),
           },
         });
-        await tx.loanStatusHistory.create({ data: { loanId: id, fromStatus: previous?.status, toStatus: normalizedStatus, changedBy: sessionUser.id, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || null } });
-        await tx.auditEntry.create({ data: { actorId: sessionUser.id, action: "LOAN_STATUS_CHANGE", entityType: "LoanApplication", entityId: id, previousValue: previous?.status, newValue: normalizedStatus, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || "Loan status updated", loanId: id } });
+        await tx.loanStatusHistory.create({ data: { loanId: id, fromStatus: previous?.status, toStatus: normalizedStatus, changedBy: sessionUser.id, changedByRole: sessionUser.role, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || null } });
+        await tx.auditEntry.create({ data: { actorId: sessionUser.id, actorRole: sessionUser.role, action: "LOAN_STATUS_CHANGE", entityType: "LoanApplication", entityId: id, previousValue: previous?.status, newValue: normalizedStatus, reason: bypassedGuarantors ? `Guarantor approval bypassed by Super Administrator. ${reasonText}`.trim() : reasonText || "Loan status updated", loanId: id } });
         const title = normalizedStatus === "APPROVED" ? "Loan approval" : normalizedStatus === "REJECTED" ? "Loan application rejected" : `Loan status: ${normalizedStatus}`;
         await tx.notification.create({ data: { userId: loan.userId, title, body: normalizedStatus === "REJECTED" ? `Your loan application ${loan.applicationNo} was rejected. Reason: ${reasonText}` : `Your loan application ${loan.applicationNo} is now ${normalizedStatus.toLowerCase().replace("_", " ")}.` } });
         return loan;

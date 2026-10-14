@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const user = await getUserFromRequest(request);
   if (!user) return NextResponse.json({ error: "Authentication is required" }, { status: 401 });
   const scopeAll = new URL(request.url).searchParams.get("scope") === "all";
-  if (scopeAll && !can(user.role, "finance")) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  if (scopeAll && !["SUPER_ADMIN", "EXECUTIVE"].includes(user.role)) return NextResponse.json({ error: "Access denied" }, { status: 403 });
   const holdings = await prisma.shareHolding.findMany({
     where: scopeAll ? undefined : { membership: { userId: user.id } },
     include: { membership: { include: { user: { select: { firstName: true, lastName: true, email: true } } } } },
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
     const result = await prisma.$transaction(async (tx) => {
       const holding = await tx.shareHolding.findFirst({ where: { membershipId } });
-      if (units < 0 && actor.role !== "SUPER_ADMIN") throw new Error("Only a Super Administrator can reduce a member's shares");
+      if (units < 0 && !["SUPER_ADMIN", "FINANCE_OFFICER"].includes(actor.role)) throw new Error("Only the Super Administrator or Financial Officer can reduce a member's shares");
       if (holding && holding.units + units < 0) throw new Error("A member cannot hold fewer than zero shares");
       if (!holding && units < 0) throw new Error("A member cannot hold fewer than zero shares");
       const updated = holding
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       const transaction = await tx.shareTransaction.create({
         data: { membershipId, units, unitPrice, type, description: String(body.description || "Share adjustment"), reference: `SHR-${randomUUID()}`, actorId: actor.id },
       });
-      await tx.auditEntry.create({ data: { actorId: actor.id, action: "SHARE_ADJUSTMENT", entityType: "ShareHolding", entityId: updated.id, previousValue: String(holding?.units || 0), newValue: String(updated.units), reason: String(body.reason || body.description || "Share adjustment"), shareTransactionId: transaction.id } });
+      await tx.auditEntry.create({ data: { actorId: actor.id, actorRole: actor.role, action: "SHARE_ADJUSTMENT", entityType: "ShareHolding", entityId: updated.id, previousValue: String(holding?.units || 0), newValue: String(updated.units), reason: String(body.reason || body.description || "Share adjustment"), shareTransactionId: transaction.id } });
       return { holding: updated, transaction };
     });
     return NextResponse.json(result, { status: 201 });
