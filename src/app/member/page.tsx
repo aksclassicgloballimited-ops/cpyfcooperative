@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { disableMobilePush } from '@/components/NativeMemberNav';
 import MemberMenu from '@/components/MemberMenu';
 
 const quickActions = [
@@ -193,13 +192,15 @@ export default function MemberDashboardPage() {
     <main className="min-h-screen bg-[#f5f3ff] px-4 py-10 text-[#1d1731] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 flex items-center gap-3 text-sm font-bold text-[#6A11CB]"><Image src="/cpyf-logo.jpeg" alt="CPYIF logo" width={40} height={40} className="rounded-full" /> CPYIF Cooperative</div>
-        <div className="mb-8 flex flex-col gap-4 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-6 text-white shadow-[0_18px_60px_rgba(76,29,149,0.22)] sm:flex-row sm:items-center sm:justify-between">
-          <MemberMenu />
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Member Dashboard</p>
-            <h1 className="mt-2 text-3xl font-bold">{memberTitle}</h1>
+        <div className="mb-8 rounded-[2rem] bg-gradient-to-r from-[#6A11CB] to-[#8b5cf6] p-6 text-white shadow-[0_18px_60px_rgba(76,29,149,0.22)]">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-violet-100">Member Dashboard</p>
+              <h1 className="mt-2 text-3xl font-bold">{memberTitle}</h1>
+              <p className="mt-3 inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm">Membership No: {membershipNo}</p>
+            </div>
+            <MemberMenu unread={unreadNotifications} />
           </div>
-
           {membershipStatus !== 'ACTIVE' && (
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
               <div className="font-bold">Membership status: {membershipStatus}</div>
@@ -207,24 +208,7 @@ export default function MemberDashboardPage() {
               <a href="/payment" className="mt-3 inline-flex rounded-full bg-[#6A11CB] px-4 py-2 text-sm font-bold text-white">View payment instructions</a>
             </div>
           )}
-          <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
-            Membership No: {membershipNo}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/member/notifications" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Notifications {unreadNotifications > 0 && <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-[#1d1234]">{unreadNotifications}</span>}</Link>
-            <Link href="/member/guarantors" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Guarantors</Link>
-            <Link href="/member/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</Link>
-            <Link href="/member/id-card" className="rounded-full bg-amber-400 px-4 py-2 text-sm font-bold text-[#1d1234]">ID Card</Link>
-          </div>
-          <button
-            type="button"
-            onClick={async () => { await disableMobilePush(); await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/#portal'); }}
-            className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold"
-          >
-            Logout
-          </button>
         </div>
-
         <section className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-violet-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
           {profilePhoto ? <img src={profilePhoto} alt="Member passport" className="h-32 w-28 rounded-xl border-2 border-violet-200 object-cover shadow" /> : <div className="flex h-32 w-28 items-center justify-center rounded-xl bg-violet-100 text-3xl font-bold text-[#6A11CB]">{profile.firstName.slice(0, 1)}{profile.lastName.slice(0, 1)}</div>}
           <div className="flex-1">
