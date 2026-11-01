@@ -1,5 +1,5 @@
 export const ID_CARD_FEE = 2000;
-export const ID_CARD_VALIDITY_YEARS = 3;
+export const ID_CARD_VALIDITY_YEARS = 2;
 export const EXPIRY_NOTICE_DAYS = 30;
 
 export type CardStatus = "ACTIVE" | "EXPIRED" | "SUSPENDED" | "REVOKED";
@@ -15,7 +15,7 @@ export function addCalendarYears(date: Date, years: number) {
 
 export function computeCardDates(approvalDate: Date, now: Date) {
   const fromApproval = addCalendarYears(approvalDate, ID_CARD_VALIDITY_YEARS);
-  // A member approved more than three years ago would otherwise receive an already-expired card.
+  // A member approved more than two years ago would otherwise receive an already-expired card.
   if (fromApproval.getTime() > now.getTime()) return { issueDate: now, expiryDate: fromApproval, basedOn: "APPROVAL" as const };
   return { issueDate: now, expiryDate: addCalendarYears(now, ID_CARD_VALIDITY_YEARS), basedOn: "ISSUE" as const };
 }

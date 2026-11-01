@@ -6,9 +6,9 @@ const d = (s: string) => new Date(`${s}T00:00:00Z`);
 const complete = { firstName: "A", lastName: "B", address: "1 Road", phone: "080", passportPhoto: "data:image/png;base64,x", nomineePhone: "081", membershipNo: "CPYF/001" };
 
 describe("ID card validity", () => {
-  it("expires exactly three calendar years after approval", () => {
+  it("expires exactly two calendar years after approval", () => {
     const { expiryDate } = computeCardDates(d("2026-10-15"), d("2026-11-01"));
-    expect(expiryDate.toISOString().slice(0, 10)).toBe("2029-10-15");
+    expect(expiryDate.toISOString().slice(0, 10)).toBe("2028-10-15");
   });
   it("is not based on the payment date", () => {
     const early = computeCardDates(d("2026-10-15"), d("2026-10-20")).expiryDate;
@@ -16,15 +16,15 @@ describe("ID card validity", () => {
     expect(early.getTime()).toBe(late.getTime());
   });
   it("handles 29 February", () => {
-    expect(addCalendarYears(d("2024-02-29"), 3).toISOString().slice(0, 10)).toBe("2027-02-28");
+    expect(addCalendarYears(d("2024-02-29"), 2).toISOString().slice(0, 10)).toBe("2026-02-28");
   });
   it("never issues an already-expired first card", () => {
     const now = d("2026-11-01");
-    const { expiryDate } = computeCardDates(d("2023-01-10"), now);
+    const { expiryDate } = computeCardDates(d("2024-01-10"), now);
     expect(expiryDate.getTime()).toBeGreaterThan(now.getTime());
   });
-  it("renewal runs three years from the renewal date", () => {
-    expect(computeRenewalDates(d("2029-11-02")).expiryDate.toISOString().slice(0, 10)).toBe("2032-11-02");
+  it("renewal runs two years from the renewal date", () => {
+    expect(computeRenewalDates(d("2029-11-02")).expiryDate.toISOString().slice(0, 10)).toBe("2031-11-02");
   });
   it("marks a card expired once the expiry date is reached", () => {
     const card = { status: "ACTIVE" as const, expiryDate: d("2026-10-15") };
@@ -53,9 +53,9 @@ describe("payment gate", () => {
     expect(missingCardFields(complete)).toEqual([]);
   });
   it("does not allow duplicate cards while active, but offers renewal when expired", () => {
-    expect(checkPaymentRequest({ ...base, card: { status: "ACTIVE", expiryDate: d("2029-10-15") } })).toMatchObject({ ok: false, status: 409 });
+    expect(checkPaymentRequest({ ...base, card: { status: "ACTIVE", expiryDate: d("2028-10-15") } })).toMatchObject({ ok: false, status: 409 });
     expect(checkPaymentRequest({ ...base, card: { status: "ACTIVE", expiryDate: d("2026-10-15") } })).toEqual({ ok: true, kind: "RENEWAL" });
-    expect(checkPaymentRequest({ ...base, card: { status: "REVOKED", expiryDate: d("2029-10-15") } })).toMatchObject({ ok: false, status: 403 });
+    expect(checkPaymentRequest({ ...base, card: { status: "REVOKED", expiryDate: d("2028-10-15") } })).toMatchObject({ ok: false, status: 403 });
   });
   it("fixes the fee at 2000", () => expect(ID_CARD_FEE).toBe(2000));
 });
