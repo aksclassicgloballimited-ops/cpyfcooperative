@@ -33,6 +33,11 @@ export async function POST(request: Request) {
           actorId: actor.id,
         },
       });
+      // Dividends go straight into the member's total savings.
+      const current = await tx.transaction.aggregate({ _sum: { amount: true }, where: { userId, type: "SAVINGS", status: "POSTED", reversedAt: null } });
+      const balanceAfter = Number(current._sum.amount || 0) + amount;
+      if (balanceAfter < 0) throw new Error("A dividend reversal cannot exceed the member's current savings");
+      await tx.transaction.create({ data: { userId, type: "SAVINGS", amount, reference: `SAV-DIV-${randomUUID()}`, description: amount > 0 ? "Dividend credited to savings" : "Dividend reversal from savings", balanceAfter, actorId: actor.id } });
       await tx.auditEntry.create({
         data: {
           actorId: actor.id,
@@ -45,12 +50,12 @@ export async function POST(request: Request) {
           transactionId: transaction.id,
         },
       });
-      await tx.notification.create({ data: { userId, title: amount > 0 ? "Dividend paid" : "Dividend adjustment", body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been credited to" : "was reversed from"} your account.` } });
+      await tx.notification.create({ data: { userId, title: amount > 0 ? "Dividend paid" : "Dividend adjustment", body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been added to" : "was deducted from"} your total savings. Your new savings balance is ₦${balanceAfter.toLocaleString()}.` } });
       return transaction;
     });
     await sendPushNotification(userId, {
       title: amount > 0 ? "Dividend paid" : "Dividend adjustment",
-      body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been credited to" : "was reversed from"} your account.`,
+      body: `₦${Math.abs(amount).toLocaleString()} dividend ${amount > 0 ? "has been added to" : "was deducted from"} your total savings.`,
     });
 
     return NextResponse.json({ transaction: result }, { status: 201 });

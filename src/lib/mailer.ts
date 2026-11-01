@@ -10,6 +10,9 @@ export async function sendMail(to: string, subject: string, html: string) {
     host: process.env.SMTP_HOST,
     port,
     secure: port === 465,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
   await transporter.sendMail({

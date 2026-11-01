@@ -3,6 +3,9 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSessionLocal } from "@/lib/store";
 import { SESSION_COOKIE, isJwtConfigured, sessionCookieOptions, sessionMaxAgeForRole, signSessionJwt } from "@/lib/jwt";
+import { isMailConfigured, sendMail } from "@/lib/mailer";
+
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export const runtime = "nodejs";
 
@@ -39,6 +42,11 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ user: safeUser }, { status: 200 });
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(sessionMaxAgeForRole(user.role)));
     response.headers.set("Cache-Control", "no-store");
+    if (user.role === "MEMBER" && isMailConfigured()) {
+      const name = escapeHtml(user.firstName);
+      const when = new Date().toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Lagos" });
+      await sendMail(user.email, "New login to your CPYIF account", `<p>Hello ${name},</p><p>Your CPYIF Cooperative account was just signed in to on <b>${when}</b> (Lagos time).</p><p>If this was you, no action is needed. If not, reset your password immediately at the portal and contact the cooperative office.</p><p>CPYIF Interest-Free Cooperative</p>`).catch(() => undefined);
+    }
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Login failed";
