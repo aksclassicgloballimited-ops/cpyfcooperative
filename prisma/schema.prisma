@@ -116,6 +116,8 @@ model User {
   passwordResets            PasswordReset[]
   sharePurchaseRequests     SharePurchaseRequest[]
   pushDevices               PushDevice[]
+  idCard                    IdCard?
+  idCardPayments            IdCardPayment[]
 }
 
 model PushDevice {
@@ -299,15 +301,15 @@ model LoanApplication {
 }
 
 model LoanStatusHistory {
-  id         String          @id @default(cuid())
-  loanId     String
-  fromStatus String?
-  toStatus   String
-  changedBy  String
+  id            String          @id @default(cuid())
+  loanId        String
+  fromStatus    String?
+  toStatus      String
+  changedBy     String
   changedByRole String?
-  reason     String?
-  createdAt  DateTime        @default(now())
-  loan       LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  reason        String?
+  createdAt     DateTime        @default(now())
+  loan          LoanApplication @relation(fields: [loanId], references: [id], onDelete: Cascade)
 }
 
 model AuditEntry {
@@ -414,4 +416,86 @@ model SharePurchaseRequest {
   rejectionReason String?
   createdAt       DateTime  @default(now())
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum IdCardStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+}
+
+enum IdCardPaymentKind {
+  ISSUE
+  RENEWAL
+}
+
+enum IdCardPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model IdCard {
+  id              String          @id @default(cuid())
+  userId          String          @unique
+  verifyToken     String          @unique
+  status          IdCardStatus    @default(ACTIVE)
+  approvalDate    DateTime
+  issueDate       DateTime
+  expiryDate      DateTime
+  lastRenewalDate DateTime?
+  renewalCount    Int             @default(0)
+  statusReason    String?
+  statusChangedBy String?
+  statusChangedAt DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events          IdCardEvent[]
+  payments        IdCardPayment[]
+
+  @@index([status, expiryDate])
+}
+
+model IdCardPayment {
+  id              String              @id @default(cuid())
+  userId          String
+  cardId          String?
+  kind            IdCardPaymentKind
+  amount          Float
+  reference       String              @unique
+  transactionNo   String?
+  receipt         String?
+  status          IdCardPaymentStatus @default(PENDING)
+  // Holds the userId while PENDING so the database allows only one open payment per member.
+  pendingKey      String?             @unique
+  reviewedBy      String?
+  reviewedByRole  String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime            @default(now())
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card            IdCard?             @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model IdCardEvent {
+  id         String    @id @default(cuid())
+  cardId     String?
+  userId     String
+  action     String
+  actorId    String?
+  actorRole  String?
+  reason     String?
+  reference  String?
+  issueDate  DateTime?
+  expiryDate DateTime?
+  createdAt  DateTime  @default(now())
+  card       IdCard?   @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([cardId, createdAt])
 }

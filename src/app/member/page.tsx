@@ -212,6 +212,7 @@ export default function MemberDashboardPage() {
             <Link href="/member/notifications" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Notifications {unreadNotifications > 0 && <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-[#1d1234]">{unreadNotifications}</span>}</Link>
             <Link href="/member/guarantors" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Guarantors</Link>
             <Link href="/member/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</Link>
+            <Link href="/member/id-card" className="rounded-full bg-amber-400 px-4 py-2 text-sm font-bold text-[#1d1234]">ID Card</Link>
           </div>
           <button
             type="button"

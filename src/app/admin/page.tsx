@@ -246,6 +246,7 @@ export default function AdminDashboardPage() {
             {canViewLoans && <a href="/admin/loans" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Loan Management</a>}
             {canViewMembers && <a href="/admin/members" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Member Management</a>}
             <a href="/admin/reports" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Reports</a>
+                    {['SUPER_ADMIN', 'EXECUTIVE', 'FINANCE_OFFICER'].includes(currentRole) && <a href="/admin/id-cards" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">ID Cards</a>}
             {canViewMembers && <a href="/admin/documents" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">Documents</a>}
             <button type="button" onClick={() => { window.location.href = '/admin/logout'; }} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Logout</button>
           </div>
