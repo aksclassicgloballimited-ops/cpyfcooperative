@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && node scripts/migrate-admin-role-to-president.cjs && prisma db push --accept-data-loss && next build",
+    "build": "prisma generate && node scripts/migrate-admin-role-to-president.cjs && prisma db push --accept-data-loss && node scripts/adjust-idcard-validity.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
